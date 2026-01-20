@@ -20,8 +20,6 @@
   - Destination queues per elevator (assigned stops)
   - Time/clock state for simulation
 
--> pending requests (request dispatcher)
-
 ### Consistency Model (To be revisited)
 - **Strong Consistency**: Required (not eventual consistency)
 - **Reason**: Elevator control needs immediate, accurate state visibility
@@ -67,9 +65,6 @@
 - **Location**: Part of codebase but different responsibility
 - **Threading**: Generator runs in its own thread
 
-Notes: mahesh
-1. elevator states
-
 ### Destination Input Strategy
 - **Phase 1**: Simulated destinations (system generates random destination)
 - **Future**: Support two-step input (hall call → destination input)
@@ -86,15 +81,11 @@ Notes: mahesh
   - `Elevator.HasPassengers`: Boolean flag (derived from stops.Any())
 - **Reason**: Realistic behavior, bounded concurrent requests (max 18)
 
--> there should be prioritization on the elevators as well.
--> consider ratelimiting is required for realistic usage rate and for the system to not break due to swelling request queues. ratelimiting protects the queues from swelling up.
-
 ### Capacity Management
-- **Decision**: No capacity limit
+- **Decision**: No capacity limit for passengers
 - **Reason**: Problem says "weight limits out of scope", keep it simple
-- **Future**: Can be added if needed (easier than weight calculations)
-
--> number of requests is also under capacity management. not just passengers.
+- **Request Capacity**: System handles bounded concurrent requests (max 18 hall calls)
+- **Future**: Passenger capacity limits can be added if needed (easier than weight calculations)
 
 ### Timing Configuration
 - **Storage**: JSON configuration file
@@ -141,19 +132,14 @@ ElevatorSystem/                    (.NET 8 Console Application)
 8. **Time Model**: Configurable (10s production, 100ms test mode)
 9. **Technology**: .NET 8, C#, cross-platform
 
-## Out of Scope (Explicitly)
+## Out of Scope (From Problem Statement)
 
 - Weight limits
 - Fire control
 - Overrides
 - Holds
-- Capacity limits (for now)
-- Multi-building support
-- Persistence/recovery
-- User authentication
-- Request prioritization
-- Use case of Elevator Getting stuck due to technical malfunction
-- Energy Optimization
+
+**Additional exclusions documented in Phase 1 Requirements.**
 
 ## Success Criteria
 
