@@ -1,46 +1,53 @@
-# Elevator System Design Documentation
+# Documentation Guide
 
-## Main Document
+## Primary Documents
 
-**COMPLETE-DESIGN.md** - Complete system design in one document
+### COMPLETE-DESIGN.md
+Complete system design specification covering all 12 phases of the design process.
 
-Contains:
-- Problem understanding & requirements
-- Domain model & architecture  
-- Critical algorithms & data structures
-- Concurrency & error handling
-- Performance analysis & testing strategy
-- Implementation summary
+**Contents:**
+- Problem statement and requirements analysis
+- Domain model and entity relationships
+- System architecture (Clean Architecture)
+- Core algorithms (scheduling, tick processing, destination selection)
+- Concurrency model and thread safety guarantees
+- Error handling strategies
+- Performance analysis and optimization
+- Testing strategy and coverage targets
 
----
+### FUTURE-IMPROVEMENTS.md
+Planned enhancements and extensions beyond Phase 1 scope.
+
+**Contents:**
+- Feature roadmap (Phases 2-8)
+- Technical debt documentation
+- Migration strategies
+- Priority matrix and success metrics
 
 ## Archive
 
-The `archive/` folder contains the original phase-by-phase documents used during the design process. These are kept for reference but everything is consolidated in `COMPLETE-DESIGN.md`.
+The `archive/` folder contains original phase-by-phase design documents from the iterative design process. These are preserved for historical reference. All content has been consolidated into `COMPLETE-DESIGN.md`.
 
----
+## Navigation Paths
 
-## Navigation
+### For Reviewers
+1. Start with `COMPLETE-DESIGN.md` (complete specification)
+2. Review `../README.md` (project overview with ADRs)
+3. Explore `../src/` (implementation code)
+4. Run simulation: `cd ../src/ElevatorSystem && dotnet run`
 
-**For Interviewers:**
-1. Read `COMPLETE-DESIGN.md`
-2. Review `../src/` (implementation)
-3. Run: `cd ../src/ElevatorSystem && dotnet run`
+### For Developers
+1. Read `COMPLETE-DESIGN.md` (design specifications)
+2. Consult `../src/README.md` (developer guide and API reference)
+3. Review `FUTURE-IMPROVEMENTS.md` (extension points)
+4. Begin implementation
 
-**For Implementation:**
-1. Read `COMPLETE-DESIGN.md` (specifications)
-2. Check `../src/README.md` (developer guide)
-3. Start coding
+### For Testers
+1. Review Section 11 in `COMPLETE-DESIGN.md` (testing strategy)
+2. Refer to `../src/README.md` for test execution commands
+3. Target 90% code coverage (70% unit, 20% integration, 10% E2E)
+4. Use xUnit framework with Moq for test doubles
 
-**For Testing:**
-1. Review Section 11 in `COMPLETE-DESIGN.md`
-2. Implement tests using xUnit + Moq
-3. Target 90% coverage
+## Document Status
 
----
-
-## Design Status
-
-**Status:** Complete (12 phases)
-
-All phases consolidated into a single comprehensive document.
+All 12 design phases complete and consolidated. Implementation finished. Testing strategy defined, implementation in progress.
