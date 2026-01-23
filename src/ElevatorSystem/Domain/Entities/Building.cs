@@ -28,6 +28,7 @@ namespace ElevatorSystem.Domain.Entities
         private readonly object _lock = new object();
         private readonly List<Elevator> _elevators;
         private readonly HallCallQueue _hallCallQueue;
+        private readonly Dictionary<Guid, Request> _requests; // Track all requests by ID
 
         public Building(
             ISchedulingStrategy schedulingStrategy,
@@ -46,6 +47,7 @@ namespace ElevatorSystem.Domain.Entities
             _elevators = InitializeElevators(config.ElevatorCount, config.MaxFloors, config.DoorOpenTicks, config.ElevatorMovementTicks, logger);
 
             _hallCallQueue = new HallCallQueue();
+            _requests = new Dictionary<Guid, Request>();
 
             _logger.LogInfo($"Building initialized: {config.ElevatorCount} elevators, {config.MaxFloors} floors");
         }
@@ -127,24 +129,17 @@ namespace ElevatorSystem.Domain.Entities
                     _logger.LogInfo($"Reusing existing HallCall {hallCall.Id} at Floor {sourceFloor}, Direction {direction}");
                 }
 
-                // 6. Add destination to hall call
+                // 6. Add destination to hall call (passengers will board when elevator arrives)
                 hallCall.AddDestination(destinationFloor);
 
                 // 7. Create passenger request
                 var journey = Journey.Of(sourceFloor, destinationFloor);
                 var request = new Request(hallCall.Id, journey);
+                _requests[request.Id] = request; // Store request for tracking
                 _logger.LogInfo($"Request {request.Id} created: {sourceFloor} → {destinationFloor}");
 
-                // 8. If hall call is already assigned, add destination to elevator
-                if (hallCall.Status == HallCallStatus.ASSIGNED && hallCall.AssignedElevatorId.HasValue)
-                {
-                    var elevator = _elevators.FirstOrDefault(e => e.Id == hallCall.AssignedElevatorId.Value);
-                    if (elevator != null)
-                    {
-                        elevator.AddDestination(destinationFloor);
-                        _logger.LogInfo($"Added destination {destinationFloor} to Elevator {elevator.Id}");
-                    }
-                }
+                // Note: Passenger destinations are NOT added to elevator here.
+                // They will be added when passengers board at the hall call floor.
 
                 _metrics.IncrementAcceptedRequests();
                 return Result<Request>.Success(request);
@@ -238,6 +233,7 @@ namespace ElevatorSystem.Domain.Entities
                 AssignPendingHallCalls();
                 ProcessAllElevators();
                 CompleteHallCalls();
+                CompleteRequests();
                 UpdateMetrics();
             }
         }
@@ -314,18 +310,10 @@ namespace ElevatorSystem.Domain.Entities
 
             bestElevator.AssignHallCall(hallCall);
             hallCall.MarkAsAssigned(bestElevator.Id);
-            AddDestinationsToElevator(bestElevator, hallCall);
+            // Note: AssignHallCall already adds the hall call floor to elevator destinations.
+            // Passenger destinations will be added when passengers board at the hall call floor.
             
             _logger.LogInfo($"HallCall {hallCall.Id} assigned to Elevator {bestElevator.Id} with {hallCall.GetDestinations().Count} destination(s)");
-        }
-
-        private void AddDestinationsToElevator(Elevator elevator, HallCall hallCall)
-        {
-            foreach (var destinationFloor in hallCall.GetDestinations())
-            {
-                elevator.AddDestination(destinationFloor);
-                _logger.LogDebug($"Added destination {destinationFloor} to Elevator {elevator.Id}");
-            }
         }
 
         private void CompleteHallCalls()
@@ -344,10 +332,63 @@ namespace ElevatorSystem.Domain.Entities
 
             foreach (var hallCall in hallCallsAtCurrentFloor)
             {
+                // Add passenger destinations when passengers board (elevator arrives at hall call floor)
+                foreach (var destinationFloor in hallCall.GetDestinations())
+                {
+                    if (destinationFloor != elevator.CurrentFloor)
+                    {
+                        elevator.AddDestination(destinationFloor);
+                        _logger.LogDebug($"Added passenger destination {destinationFloor} to Elevator {elevator.Id} after boarding at floor {elevator.CurrentFloor}");
+                    }
+                }
+
+                // Mark all requests associated with this hall call as IN_TRANSIT (passengers boarded)
+                MarkRequestsAsInTransit(hallCall.Id);
+
                 hallCall.MarkAsCompleted();
                 elevator.RemoveHallCallId(hallCall.Id);
                 _metrics.IncrementCompletedHallCalls();
                 _logger.LogInfo($"HallCall {hallCall.Id} completed by Elevator {elevator.Id} at floor {elevator.CurrentFloor}");
+            }
+        }
+
+        private void MarkRequestsAsInTransit(Guid hallCallId)
+        {
+            var requestsForHallCall = _requests.Values
+                .Where(r => r.HallCallId == hallCallId && r.Status == RequestStatus.WAITING)
+                .ToList();
+
+            foreach (var request in requestsForHallCall)
+            {
+                request.MarkAsInTransit();
+                _logger.LogDebug($"Request {request.Id} marked as IN_TRANSIT (passenger boarded at floor {request.Journey.SourceFloor})");
+            }
+        }
+
+        private void CompleteRequests()
+        {
+            // Check all elevators in LOADING state (doors open, passengers can exit)
+            var elevatorsInLoadingState = _elevators.Where(e => e.State == ElevatorState.LOADING);
+
+            foreach (var elevator in elevatorsInLoadingState)
+            {
+                CompleteRequestsForElevator(elevator);
+            }
+        }
+
+        private void CompleteRequestsForElevator(Elevator elevator)
+        {
+            // Find all requests that are IN_TRANSIT and have destination matching current floor
+            var requestsToComplete = _requests.Values
+                .Where(r => r.Status == RequestStatus.IN_TRANSIT && 
+                           r.Journey.DestinationFloor == elevator.CurrentFloor)
+                .ToList();
+
+            foreach (var request in requestsToComplete)
+            {
+                request.MarkAsCompleted();
+                _metrics.IncrementCompletedRequests();
+                _logger.LogInfo($"Request {request.Id} completed: passenger reached destination floor {elevator.CurrentFloor}");
             }
         }
 

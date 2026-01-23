@@ -10,6 +10,7 @@ namespace ElevatorSystem.Infrastructure.Metrics
         void IncrementAcceptedRequests();
         void IncrementRejectedRequests();
         void IncrementCompletedHallCalls();
+        void IncrementCompletedRequests();
         void IncrementRateLimitHits();
         void IncrementQueueFullRejections();
         void IncrementSafetyTimeoutHits();

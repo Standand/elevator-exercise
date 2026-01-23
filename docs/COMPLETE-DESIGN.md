@@ -73,6 +73,16 @@ IDLE → MOVING → LOADING → MOVING → ... → IDLE
 PENDING → ASSIGNED → COMPLETED
 ```
 
+**Request States:**
+```
+WAITING → IN_TRANSIT → COMPLETED
+```
+
+**Completion Rules:**
+- **Hall Call completed:** When elevator arrives at hall call floor (pickup point) and passengers board
+- **Request IN_TRANSIT:** When hall call is completed (passengers boarded elevator)
+- **Request COMPLETED:** When elevator arrives at request's destination floor
+
 ---
 
 ## 3. Architecture
@@ -140,6 +150,12 @@ Domain Layer
 3. Complete hall calls
    - When elevator in LOADING state at hall call floor
    - Mark hall call as COMPLETED, remove from elevator
+   - Mark associated requests as IN_TRANSIT (passengers boarded)
+   - Add passenger destinations to elevator
+
+4. Complete requests
+   - When elevator in LOADING state at destination floor
+   - Mark requests with matching destination as COMPLETED
 
 4. Update metrics
 ```
@@ -252,8 +268,13 @@ public Result<HallCall> RequestHallCall(int floor, Direction direction)
 ### Metrics (Every 10 seconds)
 ```
 [METRICS] Requests: 120 total (115 accepted, 5 rejected) | 
-          Completed: 110 | Pending: 3 | Active Elevators: 2/4
+          Hall Calls Completed: 110 | Requests Completed: 105 | 
+          Pending: 3 | Active Elevators: 2/4
 ```
+
+**Note:** Hall Calls and Requests are tracked separately:
+- **Hall Calls Completed:** Number of pickup points serviced (passengers boarded)
+- **Requests Completed:** Number of passengers who reached their destination
 
 ### Elevator Status (Every 10 ticks)
 ```

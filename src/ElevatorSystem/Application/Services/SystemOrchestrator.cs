@@ -76,7 +76,8 @@ namespace ElevatorSystem.Application.Services
             var snapshot = _metrics.GetSnapshot();
             _logger.LogInfo($"[METRICS] Requests: {snapshot.TotalRequests} total " +
                            $"({snapshot.AcceptedRequests} accepted, {snapshot.RejectedRequests} rejected) | " +
-                           $"Completed: {snapshot.CompletedHallCalls} | " +
+                           $"Hall Calls Completed: {snapshot.CompletedHallCalls} | " +
+                           $"Requests Completed: {snapshot.CompletedRequests} | " +
                            $"Pending: {snapshot.PendingHallCalls} | " +
                            $"Active Elevators: {snapshot.ActiveElevators}");
         }

@@ -76,8 +76,9 @@ dotnet run
 
 **Point out:**
 - Hall call assignment logic (direction-aware)
-- Door timers (3 ticks = 3 seconds)
-- Completed requests counter
+- Door timers (configurable ticks)
+- Hall calls completed when passengers board
+- Requests completed when passengers reach destination
 - Rate limiting rejections (if any)
 
 **Stop gracefully:**

@@ -12,6 +12,7 @@ namespace ElevatorSystem.Infrastructure.Metrics
         private int _acceptedRequests;
         private int _rejectedRequests;
         private int _completedHallCalls;
+        private int _completedRequests;
         private int _rateLimitHits;
         private int _queueFullRejections;
         private int _safetyTimeoutHits;
@@ -22,6 +23,7 @@ namespace ElevatorSystem.Infrastructure.Metrics
         public void IncrementAcceptedRequests() => Interlocked.Increment(ref _acceptedRequests);
         public void IncrementRejectedRequests() => Interlocked.Increment(ref _rejectedRequests);
         public void IncrementCompletedHallCalls() => Interlocked.Increment(ref _completedHallCalls);
+        public void IncrementCompletedRequests() => Interlocked.Increment(ref _completedRequests);
         public void IncrementRateLimitHits() => Interlocked.Increment(ref _rateLimitHits);
         public void IncrementQueueFullRejections() => Interlocked.Increment(ref _queueFullRejections);
         public void IncrementSafetyTimeoutHits() => Interlocked.Increment(ref _safetyTimeoutHits);
@@ -37,6 +39,7 @@ namespace ElevatorSystem.Infrastructure.Metrics
                 AcceptedRequests = _acceptedRequests,
                 RejectedRequests = _rejectedRequests,
                 CompletedHallCalls = _completedHallCalls,
+                CompletedRequests = _completedRequests,
                 RateLimitHits = _rateLimitHits,
                 QueueFullRejections = _queueFullRejections,
                 SafetyTimeoutHits = _safetyTimeoutHits,

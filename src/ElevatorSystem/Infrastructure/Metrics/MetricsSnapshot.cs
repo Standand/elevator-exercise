@@ -9,6 +9,7 @@ namespace ElevatorSystem.Infrastructure.Metrics
         public int AcceptedRequests { get; set; }
         public int RejectedRequests { get; set; }
         public int CompletedHallCalls { get; set; }
+        public int CompletedRequests { get; set; }
         public int RateLimitHits { get; set; }
         public int QueueFullRejections { get; set; }
         public int SafetyTimeoutHits { get; set; }

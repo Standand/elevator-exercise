@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using ElevatorSystem.Domain.Entities;
@@ -17,6 +18,8 @@ namespace ElevatorSystem.Application.Services
         private readonly ITimeService _timeService;
         private readonly ILogger _logger;
         private readonly int _tickIntervalMs;
+        private int _tickCount = 0;
+        private const int STATUS_LOG_INTERVAL_TICKS = 10;
 
         public ElevatorSimulationService(
             Building building,
@@ -42,6 +45,14 @@ namespace ElevatorSystem.Application.Services
                 while (!cancellationToken.IsCancellationRequested)
                 {
                     _building.ProcessTick();
+                    _tickCount++;
+                    
+                    if (_tickCount >= STATUS_LOG_INTERVAL_TICKS)
+                    {
+                        LogElevatorStatuses();
+                        _tickCount = 0;
+                    }
+                    
                     await Task.Delay(_tickIntervalMs, cancellationToken);
                 }
             }
@@ -57,6 +68,26 @@ namespace ElevatorSystem.Application.Services
             }
 
             _logger.LogInfo("Simulation stopped");
+        }
+
+        /// <summary>
+        /// Logs the current status of all elevators.
+        /// </summary>
+        private void LogElevatorStatuses()
+        {
+            var status = _building.GetStatus();
+            var elevatorStatuses = status.Elevators
+                .OrderBy(e => e.Id)
+                .Select(e =>
+                {
+                    var destStr = e.Destinations.Count > 0 
+                        ? $"[{string.Join(", ", e.Destinations)}]" 
+                        : "[]";
+                    return $"Elevator {e.Id}: Floor {e.CurrentFloor}, {e.State}, {e.Direction}, Destinations: {destStr}";
+                })
+                .ToList();
+            
+            _logger.LogInfo($"[ELEVATOR STATUS] {string.Join(" | ", elevatorStatuses)}");
         }
     }
 }
