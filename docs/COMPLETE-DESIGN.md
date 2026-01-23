@@ -20,8 +20,8 @@
 ### Functional Requirements
 - Accept hall call requests (UP/DOWN buttons at each floor)
 - Assign hall calls to elevators using direction-aware scheduling
-- Move elevators between floors (1 floor per tick)
-- Open/close doors (3 ticks duration)
+- Move elevators between floors (configurable ticks per floor)
+- Open/close doors (configurable ticks duration)
 - Handle multiple concurrent requests
 - Idempotent hall calls (duplicate requests ignored)
 
@@ -227,8 +227,9 @@ public Result<HallCall> RequestHallCall(int floor, Direction direction)
   "MaxFloors": 10,              // 2-100
   "ElevatorCount": 4,           // 1-10
   "TickIntervalMs": 1000,       // 10-10000
-  "DoorOpenTicks": 3,           // 1-10
-  "RequestIntervalSeconds": 5   // 1-60
+  "DoorOpenTicks": 10,          // 1-10 (ticks to keep doors open)
+  "ElevatorMovementTicks": 10, // 1-10 (ticks to move between floors)
+  "RequestIntervalSeconds": 10  // 1-60
 }
 ```
 
@@ -254,6 +255,14 @@ public Result<HallCall> RequestHallCall(int floor, Direction direction)
           Completed: 110 | Pending: 3 | Active Elevators: 2/4
 ```
 
+### Elevator Status (Every 10 ticks)
+```
+[ELEVATOR STATUS] Elevator 1: Floor 5, MOVING, UP, Destinations: [7, 8] | 
+                  Elevator 2: Floor 2, LOADING, UP, Destinations: [4] | 
+                  Elevator 3: Floor 0, IDLE, IDLE, Destinations: [] | 
+                  Elevator 4: Floor 3, MOVING, DOWN, Destinations: [1]
+```
+
 ---
 
 ## 10. Performance
@@ -272,9 +281,8 @@ public Result<HallCall> RequestHallCall(int floor, Direction direction)
 ## 11. Testing Strategy
 
 ### Test Pyramid (90% Coverage Target)
-- **Unit Tests (70%):** ~60 tests - Individual classes
+- **Unit Tests (80%):** ~60 tests - Individual classes
 - **Integration Tests (20%):** ~15 tests - Component interactions
-- **E2E Tests (10%):** ~5 tests - Full system scenarios
 
 ### Key Test Scenarios
 1. **Happy path:** 10 requests, all completed

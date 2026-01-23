@@ -197,7 +197,7 @@ Press `Ctrl+C` to stop.
 ### Testing Approach
 
 **If asked about testing:**
-> "Test pyramid approach: 70% unit, 20% integration, 10% E2E, targeting 90% coverage. Time is abstracted via ITimeService - tests use FakeTimeService to run in milliseconds instead of seconds. This enables fast, deterministic testing of time-dependent logic."
+> "Test pyramid approach: 80% unit, 20% integration, targeting 90% coverage. Time is abstracted via ITimeService - tests use FakeTimeService to run in milliseconds instead of seconds. This enables fast, deterministic testing of time-dependent logic."
 
 ### Future Improvements
 
