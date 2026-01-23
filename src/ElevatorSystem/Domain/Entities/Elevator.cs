@@ -121,6 +121,17 @@ namespace ElevatorSystem.Domain.Entities
         }
 
         /// <summary>
+        /// Sets the direction of the elevator (used when arriving at a hall call floor).
+        /// This ensures the elevator continues in the correct direction after boarding passengers.
+        /// </summary>
+        public void SetDirection(Direction direction)
+        {
+            Direction = direction ?? throw new ArgumentNullException(nameof(direction));
+            _destinations.SetDirection(Direction);
+            _logger.LogDebug($"Elevator {Id} direction set to {Direction} at floor {CurrentFloor}");
+        }
+
+        /// <summary>
         /// Processes one simulation tick.
         /// </summary>
         public void ProcessTick()

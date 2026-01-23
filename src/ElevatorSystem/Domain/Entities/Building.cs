@@ -332,6 +332,12 @@ namespace ElevatorSystem.Domain.Entities
 
             foreach (var hallCall in hallCallsAtCurrentFloor)
             {
+                // CRITICAL FIX: Set direction to match hall call direction when arriving
+                // This ensures the elevator continues in the correct direction after boarding
+                // Example: If elevator was IDLE at floor 6 and moved UP to reach DOWN hall call at floor 8,
+                // it should now be set to DOWN direction to service the hall call correctly
+                elevator.SetDirection(hallCall.Direction);
+                
                 // Add passenger destinations when passengers board (elevator arrives at hall call floor)
                 foreach (var destinationFloor in hallCall.GetDestinations())
                 {
