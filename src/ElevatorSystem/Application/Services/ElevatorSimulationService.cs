@@ -41,24 +41,19 @@ namespace ElevatorSystem.Application.Services
             {
                 while (!cancellationToken.IsCancellationRequested)
                 {
-                    // Process tick
                     _building.ProcessTick();
-
-                    // Wait for next tick
                     await Task.Delay(_tickIntervalMs, cancellationToken);
                 }
             }
             catch (OperationCanceledException)
             {
-                // Graceful shutdown
                 _logger.LogInfo("Simulation cancelled");
             }
             catch (Exception ex)
             {
-                // Unexpected exception - CRASH
                 _logger.LogError($"FATAL: Unexpected exception in simulation loop: {ex.Message}");
                 _logger.LogError($"Stack trace: {ex.StackTrace}");
-                throw; // Re-throw to crash the application
+                throw;
             }
 
             _logger.LogInfo("Simulation stopped");

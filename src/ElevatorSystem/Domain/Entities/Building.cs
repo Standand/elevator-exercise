@@ -13,19 +13,18 @@ namespace ElevatorSystem.Domain.Entities
     /// <summary>
     /// Represents a building with multiple elevators.
     /// Aggregate root that coordinates elevator operations.
+    /// Thread-safe: All public methods use pessimistic locking.
     /// </summary>
     public class Building
     {
-        // Dependencies (injected)
+        private const int QUEUE_CAPACITY_MULTIPLIER = 2;
+        private const int QUEUE_CAPACITY_OFFSET = 2;
+        
         private readonly ISchedulingStrategy _schedulingStrategy;
         private readonly ILogger _logger;
         private readonly IMetrics _metrics;
         private readonly RateLimiter _rateLimiter;
-
-        // Configuration
         private readonly int _maxFloors;
-
-        // State (protected by lock)
         private readonly object _lock = new object();
         private readonly List<Elevator> _elevators;
         private readonly HallCallQueue _hallCallQueue;
@@ -44,12 +43,7 @@ namespace ElevatorSystem.Domain.Entities
 
             _maxFloors = config.MaxFloors;
 
-            // Initialize elevators
-            _elevators = new List<Elevator>();
-            for (int i = 1; i <= config.ElevatorCount; i++)
-            {
-                _elevators.Add(new Elevator(i, config.MaxFloors, config.DoorOpenTicks, logger));
-            }
+            _elevators = InitializeElevators(config.ElevatorCount, config.MaxFloors, config.DoorOpenTicks, logger);
 
             _hallCallQueue = new HallCallQueue();
 
@@ -57,39 +51,155 @@ namespace ElevatorSystem.Domain.Entities
         }
 
         /// <summary>
-        /// Requests a hall call (button press at a floor).
+        /// Requests a complete passenger journey (source floor to destination floor).
+        /// This is the primary API for passenger requests.
         /// </summary>
-        public Result<HallCall> RequestHallCall(int floor, Direction direction, string source = "RandomGenerator")
+        public Result<Request> RequestPassengerJourney(int sourceFloor, int destinationFloor, string source = "RandomGenerator")
         {
+            // 1. Rate limiting (outside lock - RateLimiter is thread-safe)
+            if (!_rateLimiter.IsAllowed(source))
+            {
+                // Need lock for metrics only
+                lock (_lock)
+                {
+                    _metrics.IncrementTotalRequests();
+                    _metrics.IncrementRateLimitHits();
+                    _metrics.IncrementRejectedRequests();
+                }
+                _logger.LogWarning($"Rate limit exceeded for source '{source}'");
+                return Result<Request>.Failure("Rate limit exceeded, try again later");
+            }
+
+            // 2. Validation (outside lock - only reads immutable _maxFloors)
+            if (sourceFloor < 0 || sourceFloor > _maxFloors)
+            {
+                lock (_lock)
+                {
+                    _metrics.IncrementTotalRequests();
+                    _metrics.IncrementRejectedRequests();
+                }
+                _logger.LogWarning($"Invalid source floor: {sourceFloor}");
+                return Result<Request>.Failure($"Source floor {sourceFloor} out of range [0, {_maxFloors}]");
+            }
+
+            if (destinationFloor < 0 || destinationFloor > _maxFloors)
+            {
+                lock (_lock)
+                {
+                    _metrics.IncrementTotalRequests();
+                    _metrics.IncrementRejectedRequests();
+                }
+                _logger.LogWarning($"Invalid destination floor: {destinationFloor}");
+                return Result<Request>.Failure($"Destination floor {destinationFloor} out of range [0, {_maxFloors}]");
+            }
+
+            if (sourceFloor == destinationFloor)
+            {
+                lock (_lock)
+                {
+                    _metrics.IncrementTotalRequests();
+                    _metrics.IncrementRejectedRequests();
+                }
+                _logger.LogWarning($"Source and destination are the same: {sourceFloor}");
+                return Result<Request>.Failure("Source and destination cannot be the same");
+            }
+
+            // 3. Determine direction (outside lock - pure calculation)
+            var direction = destinationFloor > sourceFloor ? Direction.UP : Direction.DOWN;
+
+            // 4. Acquire lock only when accessing shared state
             lock (_lock)
             {
                 _metrics.IncrementTotalRequests();
 
-                // 1. Rate limiting
-                if (!_rateLimiter.IsAllowed(source))
+                // 5. Find or create hall call (accesses shared _hallCallQueue)
+                var hallCall = _hallCallQueue.FindByFloorAndDirection(sourceFloor, direction);
+                
+                if (hallCall == null)
                 {
-                    _logger.LogWarning($"Rate limit exceeded for source '{source}'");
+                    // Create new hall call
+                    hallCall = new HallCall(sourceFloor, direction);
+                    _hallCallQueue.Add(hallCall);
+                    _logger.LogInfo($"HallCall {hallCall.Id} created: Floor {sourceFloor}, Direction {direction}");
+                }
+                else
+                {
+                    _logger.LogInfo($"Reusing existing HallCall {hallCall.Id} at Floor {sourceFloor}, Direction {direction}");
+                }
+
+                // 6. Add destination to hall call
+                hallCall.AddDestination(destinationFloor);
+
+                // 7. Create passenger request
+                var journey = Journey.Of(sourceFloor, destinationFloor);
+                var request = new Request(hallCall.Id, journey);
+                _logger.LogInfo($"Request {request.Id} created: {sourceFloor} → {destinationFloor}");
+
+                // 8. If hall call is already assigned, add destination to elevator
+                if (hallCall.Status == HallCallStatus.ASSIGNED && hallCall.AssignedElevatorId.HasValue)
+                {
+                    var elevator = _elevators.FirstOrDefault(e => e.Id == hallCall.AssignedElevatorId.Value);
+                    if (elevator != null)
+                    {
+                        elevator.AddDestination(destinationFloor);
+                        _logger.LogInfo($"Added destination {destinationFloor} to Elevator {elevator.Id}");
+                    }
+                }
+
+                _metrics.IncrementAcceptedRequests();
+                return Result<Request>.Success(request);
+            }
+        }
+
+        /// <summary>
+        /// Requests a hall call (button press at a floor).
+        /// Legacy method - prefer RequestPassengerJourney for complete journeys.
+        /// </summary>
+        public Result<HallCall> RequestHallCall(int floor, Direction direction, string source = "RandomGenerator")
+        {
+            // 1. Rate limiting (outside lock - RateLimiter is thread-safe)
+            if (!_rateLimiter.IsAllowed(source))
+            {
+                // Need lock for metrics only
+                lock (_lock)
+                {
+                    _metrics.IncrementTotalRequests();
                     _metrics.IncrementRateLimitHits();
                     _metrics.IncrementRejectedRequests();
-                    return Result<HallCall>.Failure("Rate limit exceeded, try again later");
                 }
+                _logger.LogWarning($"Rate limit exceeded for source '{source}'");
+                return Result<HallCall>.Failure("Rate limit exceeded, try again later");
+            }
 
-                // 2. Validation
-                if (floor < 0 || floor > _maxFloors)
+            // 2. Validation (outside lock - only reads immutable _maxFloors)
+            if (floor < 0 || floor > _maxFloors)
+            {
+                lock (_lock)
                 {
-                    _logger.LogWarning($"Invalid floor: {floor}");
+                    _metrics.IncrementTotalRequests();
                     _metrics.IncrementRejectedRequests();
-                    return Result<HallCall>.Failure($"Floor {floor} out of range [0, {_maxFloors}]");
                 }
+                _logger.LogWarning($"Invalid floor: {floor}");
+                return Result<HallCall>.Failure($"Floor {floor} out of range [0, {_maxFloors}]");
+            }
 
-                if (direction != Direction.UP && direction != Direction.DOWN)
+            if (direction != Direction.UP && direction != Direction.DOWN)
+            {
+                lock (_lock)
                 {
-                    _logger.LogWarning($"Invalid direction: {direction}");
+                    _metrics.IncrementTotalRequests();
                     _metrics.IncrementRejectedRequests();
-                    return Result<HallCall>.Failure($"Invalid direction: {direction}");
                 }
+                _logger.LogWarning($"Invalid direction: {direction}");
+                return Result<HallCall>.Failure($"Invalid direction: {direction}");
+            }
 
-                // 3. Idempotency check
+            // 3. Acquire lock only when accessing shared state
+            lock (_lock)
+            {
+                _metrics.IncrementTotalRequests();
+
+                // 4. Idempotency check (accesses shared _hallCallQueue)
                 var existing = _hallCallQueue.FindByFloorAndDirection(floor, direction);
                 if (existing != null)
                 {
@@ -98,8 +208,8 @@ namespace ElevatorSystem.Domain.Entities
                     return Result<HallCall>.Success(existing);
                 }
 
-                // 4. Capacity check
-                if (_hallCallQueue.GetPendingCount() >= _maxFloors * 2 - 2)
+                // 5. Capacity check (accesses shared _hallCallQueue)
+                if (IsQueueAtCapacity())
                 {
                     _logger.LogError("Hall call queue at capacity");
                     _metrics.IncrementQueueFullRejections();
@@ -107,7 +217,7 @@ namespace ElevatorSystem.Domain.Entities
                     return Result<HallCall>.Failure("System at capacity, try again later");
                 }
 
-                // 5. Create hall call
+                // 6. Create hall call (modifies shared _hallCallQueue)
                 var hallCall = new HallCall(floor, direction);
                 _hallCallQueue.Add(hallCall);
                 _metrics.IncrementAcceptedRequests();
@@ -119,31 +229,22 @@ namespace ElevatorSystem.Domain.Entities
 
         /// <summary>
         /// Processes one simulation tick.
+        /// Thread-safe: Protected by internal lock.
         /// </summary>
         public void ProcessTick()
         {
             lock (_lock)
             {
-                // Step 1: Retry pending hall calls (FIFO order)
                 AssignPendingHallCalls();
-
-                // Step 2: Process each elevator (fixed order: 1, 2, 3, 4)
-                foreach (var elevator in _elevators.OrderBy(e => e.Id))
-                {
-                    elevator.ProcessTick();
-                }
-
-                // Step 3: Complete hall calls at elevator floors
+                ProcessAllElevators();
                 CompleteHallCalls();
-
-                // Step 4: Update metrics
-                _metrics.SetPendingHallCallsCount(_hallCallQueue.GetPendingCount());
-                _metrics.SetActiveElevatorsCount(_elevators.Count(e => e.State != ElevatorState.IDLE));
+                UpdateMetrics();
             }
         }
 
         /// <summary>
         /// Gets the current status of the building.
+        /// Thread-safe: Protected by internal lock.
         /// </summary>
         public BuildingStatus GetStatus()
         {
@@ -156,52 +257,108 @@ namespace ElevatorSystem.Domain.Entities
             }
         }
 
-        // Private helper methods (assume lock is held)
+        private static List<Elevator> InitializeElevators(int elevatorCount, int maxFloors, int doorOpenTicks, ILogger logger)
+        {
+            var elevators = new List<Elevator>(elevatorCount);
+            for (int elevatorId = 1; elevatorId <= elevatorCount; elevatorId++)
+            {
+                elevators.Add(new Elevator(elevatorId, maxFloors, doorOpenTicks, logger));
+            }
+            return elevators;
+        }
+
+        private bool IsQueueAtCapacity()
+        {
+            int queueCapacity = _maxFloors * QUEUE_CAPACITY_MULTIPLIER - QUEUE_CAPACITY_OFFSET;
+            return _hallCallQueue.GetPendingCount() >= queueCapacity;
+        }
+
+        private void ProcessAllElevators()
+        {
+            foreach (var elevator in _elevators.OrderBy(e => e.Id))
+            {
+                elevator.ProcessTick();
+            }
+        }
+
+        private void UpdateMetrics()
+        {
+            int pendingCount = _hallCallQueue.GetPendingCount();
+            int activeCount = _elevators.Count(e => e.State != ElevatorState.IDLE);
+            
+            _metrics.SetPendingHallCallsCount(pendingCount);
+            _metrics.SetActiveElevatorsCount(activeCount);
+        }
 
         private void AssignPendingHallCalls()
         {
-            var pendingHallCalls = _hallCallQueue.GetPending()
-                                                  .OrderBy(hc => hc.CreatedAt)
-                                                  .ToList();
+            var pendingHallCallsInFifoOrder = _hallCallQueue.GetPending()
+                                                            .OrderBy(hc => hc.CreatedAt)
+                                                            .ToList();
 
-            foreach (var hallCall in pendingHallCalls)
+            foreach (var hallCall in pendingHallCallsInFifoOrder)
             {
-                var elevator = _schedulingStrategy.SelectBestElevator(hallCall, _elevators);
+                TryAssignHallCallToElevator(hallCall);
+            }
+        }
 
-                if (elevator != null)
-                {
-                    elevator.AssignHallCall(hallCall);
-                    hallCall.MarkAsAssigned(elevator.Id);
-                    _logger.LogInfo($"HallCall {hallCall.Id} assigned to Elevator {elevator.Id}");
-                }
-                else
-                {
-                    _logger.LogDebug($"No elevator available for HallCall {hallCall.Id}, will retry");
-                }
+        private void TryAssignHallCallToElevator(HallCall hallCall)
+        {
+            var bestElevator = _schedulingStrategy.SelectBestElevator(hallCall, _elevators);
+
+            if (bestElevator == null)
+            {
+                _logger.LogDebug($"No elevator available for HallCall {hallCall.Id}, will retry");
+                return;
+            }
+
+            bestElevator.AssignHallCall(hallCall);
+            hallCall.MarkAsAssigned(bestElevator.Id);
+            AddDestinationsToElevator(bestElevator, hallCall);
+            
+            _logger.LogInfo($"HallCall {hallCall.Id} assigned to Elevator {bestElevator.Id} with {hallCall.GetDestinations().Count} destination(s)");
+        }
+
+        private void AddDestinationsToElevator(Elevator elevator, HallCall hallCall)
+        {
+            foreach (var destinationFloor in hallCall.GetDestinations())
+            {
+                elevator.AddDestination(destinationFloor);
+                _logger.LogDebug($"Added destination {destinationFloor} to Elevator {elevator.Id}");
             }
         }
 
         private void CompleteHallCalls()
         {
-            // Check each elevator in LOADING state
-            foreach (var elevator in _elevators.Where(e => e.State == ElevatorState.LOADING))
-            {
-                // Find hall calls assigned to this elevator at its current floor
-                var hallCallsToComplete = _hallCallQueue.GetAll()
-                    .Where(hc =>
-                        hc.Status == HallCallStatus.ASSIGNED &&
-                        hc.AssignedElevatorId == elevator.Id &&
-                        hc.Floor == elevator.CurrentFloor)
-                    .ToList();
+            var elevatorsInLoadingState = _elevators.Where(e => e.State == ElevatorState.LOADING);
 
-                foreach (var hallCall in hallCallsToComplete)
-                {
-                    hallCall.MarkAsCompleted();
-                    elevator.RemoveHallCallId(hallCall.Id);
-                    _metrics.IncrementCompletedHallCalls();
-                    _logger.LogInfo($"HallCall {hallCall.Id} completed by Elevator {elevator.Id} at floor {elevator.CurrentFloor}");
-                }
+            foreach (var elevator in elevatorsInLoadingState)
+            {
+                CompleteHallCallsForElevator(elevator);
             }
+        }
+
+        private void CompleteHallCallsForElevator(Elevator elevator)
+        {
+            var hallCallsAtCurrentFloor = FindHallCallsAssignedToElevatorAtFloor(elevator);
+
+            foreach (var hallCall in hallCallsAtCurrentFloor)
+            {
+                hallCall.MarkAsCompleted();
+                elevator.RemoveHallCallId(hallCall.Id);
+                _metrics.IncrementCompletedHallCalls();
+                _logger.LogInfo($"HallCall {hallCall.Id} completed by Elevator {elevator.Id} at floor {elevator.CurrentFloor}");
+            }
+        }
+
+        private List<HallCall> FindHallCallsAssignedToElevatorAtFloor(Elevator elevator)
+        {
+            return _hallCallQueue.GetAll()
+                .Where(hc =>
+                    hc.Status == HallCallStatus.ASSIGNED &&
+                    hc.AssignedElevatorId == elevator.Id &&
+                    hc.Floor == elevator.CurrentFloor)
+                .ToList();
         }
     }
 }

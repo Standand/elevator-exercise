@@ -16,13 +16,11 @@ namespace ElevatorSystem
     {
         public static async Task Main(string[] args)
         {
-            Console.WriteLine("=== Elevator Control System ===\n");
+            Console.WriteLine("=== Elevator Control System Simulation ===\n");
 
-            // Step 1: Load configuration
             var config = ConfigurationLoader.Load("appsettings.json");
             Console.WriteLine($"Configuration loaded: {config.ElevatorCount} elevators, {config.MaxFloors} floors\n");
 
-            // Step 2: Create infrastructure dependencies
             var logger = new ConsoleLogger(enableDebug: false);
             var timeService = new SystemTimeService();
             var metrics = new SystemMetrics();
@@ -31,10 +29,8 @@ namespace ElevatorSystem
                 perSourceLimitPerMinute: 10,
                 logger);
 
-            // Step 3: Create domain services
             var schedulingStrategy = new DirectionAwareStrategy();
 
-            // Step 4: Create building (domain entity)
             var building = new Building(
                 schedulingStrategy,
                 logger,
@@ -42,7 +38,6 @@ namespace ElevatorSystem
                 rateLimiter,
                 config);
 
-            // Step 5: Create application services
             var simulationService = new ElevatorSimulationService(
                 building,
                 timeService,
@@ -54,33 +49,30 @@ namespace ElevatorSystem
                 logger,
                 config);
 
-            // Step 6: Create orchestrator
             var orchestrator = new SystemOrchestrator(
                 simulationService,
                 requestGenerator,
                 metrics,
                 logger);
 
-            // Step 7: Setup graceful shutdown
-            var cts = new CancellationTokenSource();
+            var cancellationTokenSource = new CancellationTokenSource();
             Console.CancelKeyPress += (sender, e) =>
             {
                 Console.WriteLine("\n\nShutdown requested (Ctrl+C)...");
                 orchestrator.Shutdown();
-                cts.Cancel();
-                e.Cancel = true;  // Prevent immediate termination
+                e.Cancel = true;
             };
 
-            // Step 8: Start system
             Console.WriteLine("System started. Press Ctrl+C to stop.\n");
 
             try
             {
-                await orchestrator.StartAsync(cts.Token);
+                await orchestrator.StartAsync(cancellationTokenSource.Token);
             }
             catch (OperationCanceledException)
             {
-                // Expected on Ctrl+C
+                Console.WriteLine("Waiting for tasks to complete...");
+                await Task.Delay(1000);
             }
 
             Console.WriteLine("\nSystem stopped.");

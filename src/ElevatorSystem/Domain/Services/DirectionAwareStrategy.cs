@@ -13,29 +13,40 @@ namespace ElevatorSystem.Domain.Services
     {
         public Elevator? SelectBestElevator(HallCall hallCall, List<Elevator> elevators)
         {
-            // 1. Filter elevators that can accept this hall call
-            var candidates = elevators
-                .Where(e => e.CanAcceptHallCall(hallCall))
-                .ToList();
+            var candidateElevators = GetCandidateElevators(hallCall, elevators);
 
-            if (!candidates.Any())
-                return null;
-
-            // 2. Prioritize elevators already moving in same direction
-            var sameDirection = candidates
-                .Where(e => e.Direction == hallCall.Direction)
-                .ToList();
-
-            if (sameDirection.Any())
+            if (!candidateElevators.Any())
             {
-                // Pick nearest elevator moving in same direction
-                return sameDirection
-                    .OrderBy(e => Math.Abs(e.CurrentFloor - hallCall.Floor))
-                    .First();
+                return null;
             }
 
-            // 3. Otherwise, pick nearest idle elevator
+            var elevatorsInSameDirection = GetElevatorsInSameDirection(hallCall, candidateElevators);
+
+            if (elevatorsInSameDirection.Any())
+            {
+                return GetNearestElevator(hallCall, elevatorsInSameDirection);
+            }
+
+            return GetNearestElevator(hallCall, candidateElevators);
+        }
+
+        private static List<Elevator> GetCandidateElevators(HallCall hallCall, List<Elevator> elevators)
+        {
+            return elevators
+                .Where(e => e.CanAcceptHallCall(hallCall))
+                .ToList();
+        }
+
+        private static List<Elevator> GetElevatorsInSameDirection(HallCall hallCall, List<Elevator> candidates)
+        {
             return candidates
+                .Where(e => e.Direction == hallCall.Direction)
+                .ToList();
+        }
+
+        private static Elevator GetNearestElevator(HallCall hallCall, List<Elevator> elevators)
+        {
+            return elevators
                 .OrderBy(e => Math.Abs(e.CurrentFloor - hallCall.Floor))
                 .First();
         }

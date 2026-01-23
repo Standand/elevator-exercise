@@ -42,41 +42,47 @@ namespace ElevatorSystem.Application.Services
             {
                 while (!cancellationToken.IsCancellationRequested)
                 {
-                    // Generate random request
-                    var floor = _random.Next(0, _maxFloors + 1);
-                    var direction = _random.Next(2) == 0 ? Direction.UP : Direction.DOWN;
+                    var sourceFloor = _random.Next(0, _maxFloors + 1);
+                    var destinationFloor = GenerateDifferentDestinationFloor(sourceFloor);
 
-                    var result = _building.RequestHallCall(floor, direction, "RandomGenerator");
+                    var result = _building.RequestPassengerJourney(sourceFloor, destinationFloor, "RandomGenerator");
 
                     if (result.IsSuccess)
                     {
-                        _logger.LogInfo($"Generated request: Floor {floor}, Direction {direction}");
+                        var request = result.Value!;
+                        var direction = destinationFloor > sourceFloor ? "UP" : "DOWN";
+                        _logger.LogInfo($"Generated passenger journey: Floor {sourceFloor} → {destinationFloor} ({direction}) [Request: {request.Id}]");
                     }
                     else
                     {
-                        _logger.LogWarning($"Request rejected: {result.Error}");
+                        _logger.LogWarning($"Passenger journey rejected: {result.Error}");
                     }
 
-                    // Wait for next request
                     await Task.Delay(_requestIntervalMs, cancellationToken);
                 }
             }
             catch (OperationCanceledException)
             {
-                // Graceful shutdown
                 _logger.LogInfo("Request generator cancelled");
             }
             catch (Exception ex)
             {
-                // Log and continue
                 _logger.LogError($"Error generating request: {ex.Message}");
                 _logger.LogDebug($"Stack trace: {ex.StackTrace}");
-
-                // Wait before retrying
                 await Task.Delay(1000, cancellationToken);
             }
 
             _logger.LogInfo("Request generator stopped");
+        }
+
+        private int GenerateDifferentDestinationFloor(int sourceFloor)
+        {
+            var destinationFloor = _random.Next(0, _maxFloors + 1);
+            while (destinationFloor == sourceFloor)
+            {
+                destinationFloor = _random.Next(0, _maxFloors + 1);
+            }
+            return destinationFloor;
         }
     }
 }

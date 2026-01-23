@@ -3,22 +3,20 @@ using System.Threading;
 namespace ElevatorSystem.Infrastructure.Metrics
 {
     /// <summary>
-    /// Thread-safe metrics implementation using atomic operations.
+    /// Thread-safe metrics implementation using atomic operations via Interlocked.
+    /// No locks required for simple counter operations.
     /// </summary>
     public class SystemMetrics : IMetrics
     {
-        // Counters (atomic)
-        private int _totalRequests = 0;
-        private int _acceptedRequests = 0;
-        private int _rejectedRequests = 0;
-        private int _completedHallCalls = 0;
-        private int _rateLimitHits = 0;
-        private int _queueFullRejections = 0;
-        private int _safetyTimeoutHits = 0;
-
-        // Gauges (set by Building)
-        private int _pendingHallCalls = 0;
-        private int _activeElevators = 0;
+        private int _totalRequests;
+        private int _acceptedRequests;
+        private int _rejectedRequests;
+        private int _completedHallCalls;
+        private int _rateLimitHits;
+        private int _queueFullRejections;
+        private int _safetyTimeoutHits;
+        private int _pendingHallCalls;
+        private int _activeElevators;
 
         public void IncrementTotalRequests() => Interlocked.Increment(ref _totalRequests);
         public void IncrementAcceptedRequests() => Interlocked.Increment(ref _acceptedRequests);

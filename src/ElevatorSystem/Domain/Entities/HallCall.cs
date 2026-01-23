@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using ElevatorSystem.Domain.ValueObjects;
 
 namespace ElevatorSystem.Domain.Entities
@@ -6,6 +8,7 @@ namespace ElevatorSystem.Domain.Entities
     /// <summary>
     /// Represents a hall call (button press at a floor requesting UP or DOWN).
     /// Entity with identity (Id).
+    /// Multiple passengers (Requests) can share the same HallCall.
     /// </summary>
     public class HallCall
     {
@@ -15,6 +18,8 @@ namespace ElevatorSystem.Domain.Entities
         public HallCallStatus Status { get; private set; }
         public int? AssignedElevatorId { get; private set; }
         public DateTime CreatedAt { get; }
+        
+        private readonly HashSet<int> _destinationFloors = new HashSet<int>();
 
         public HallCall(int floor, Direction direction)
         {
@@ -24,6 +29,22 @@ namespace ElevatorSystem.Domain.Entities
             Status = HallCallStatus.PENDING;
             AssignedElevatorId = null;
             CreatedAt = DateTime.UtcNow;
+        }
+        
+        /// <summary>
+        /// Adds a destination floor for a passenger using this hall call.
+        /// </summary>
+        public void AddDestination(int destinationFloor)
+        {
+            _destinationFloors.Add(destinationFloor);
+        }
+        
+        /// <summary>
+        /// Gets all destination floors for this hall call.
+        /// </summary>
+        public IReadOnlyCollection<int> GetDestinations()
+        {
+            return _destinationFloors.ToList().AsReadOnly();
         }
 
         /// <summary>

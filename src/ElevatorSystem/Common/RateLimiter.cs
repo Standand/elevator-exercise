@@ -6,7 +6,8 @@ using ElevatorSystem.Infrastructure.Logging;
 namespace ElevatorSystem.Common
 {
     /// <summary>
-    /// Rate limiter with global and per-source limits using sliding window.
+    /// Rate limiter with global and per-source limits using sliding window algorithm.
+    /// Thread-safe: All public methods use internal locking.
     /// </summary>
     public class RateLimiter
     {
@@ -14,9 +15,8 @@ namespace ElevatorSystem.Common
         private readonly int _perSourceLimitPerMinute;
         private readonly ILogger _logger;
         private readonly object _lock = new object();
-
-        private readonly Queue<DateTime> _globalRequests = new Queue<DateTime>();
-        private readonly Dictionary<string, Queue<DateTime>> _sourceRequests = new Dictionary<string, Queue<DateTime>>();
+        private readonly Queue<DateTime> _globalRequestTimestamps = new Queue<DateTime>();
+        private readonly Dictionary<string, Queue<DateTime>> _perSourceRequestTimestamps = new Dictionary<string, Queue<DateTime>>();
 
         public RateLimiter(int globalLimitPerMinute, int perSourceLimitPerMinute, ILogger logger)
         {
@@ -27,6 +27,7 @@ namespace ElevatorSystem.Common
 
         /// <summary>
         /// Checks if a request from the given source is allowed.
+        /// Thread-safe: Protected by internal lock.
         /// </summary>
         /// <param name="source">The source identifier (e.g., "RandomGenerator", "API")</param>
         /// <returns>True if allowed, false if rate limit exceeded</returns>
@@ -35,41 +36,58 @@ namespace ElevatorSystem.Common
             lock (_lock)
             {
                 var now = DateTime.UtcNow;
-                var oneMinuteAgo = now.AddMinutes(-1);
+                var slidingWindowStart = now.AddMinutes(-1);
 
-                // Clean old requests
-                CleanOldRequests(_globalRequests, oneMinuteAgo);
+                RemoveExpiredRequests(_globalRequestTimestamps, slidingWindowStart);
 
-                // Check global limit
-                if (_globalRequests.Count >= _globalLimitPerMinute)
+                if (IsGlobalLimitExceeded())
                 {
-                    _logger.LogWarning($"Global rate limit exceeded: {_globalRequests.Count} requests in last minute");
+                    _logger.LogWarning($"Global rate limit exceeded: {_globalRequestTimestamps.Count} requests in last minute");
                     return false;
                 }
 
-                // Check per-source limit
-                if (!_sourceRequests.ContainsKey(source))
-                    _sourceRequests[source] = new Queue<DateTime>();
+                EnsureSourceQueueExists(source);
+                var sourceQueue = _perSourceRequestTimestamps[source];
+                RemoveExpiredRequests(sourceQueue, slidingWindowStart);
 
-                var sourceQueue = _sourceRequests[source];
-                CleanOldRequests(sourceQueue, oneMinuteAgo);
-
-                if (sourceQueue.Count >= _perSourceLimitPerMinute)
+                if (IsPerSourceLimitExceeded(sourceQueue))
                 {
                     _logger.LogWarning($"Per-source rate limit exceeded for '{source}': {sourceQueue.Count} requests");
                     return false;
                 }
 
-                // Allow request
-                _globalRequests.Enqueue(now);
-                sourceQueue.Enqueue(now);
+                RecordRequest(now, sourceQueue);
                 return true;
             }
         }
 
-        private void CleanOldRequests(Queue<DateTime> queue, DateTime cutoff)
+        private bool IsGlobalLimitExceeded()
         {
-            while (queue.Count > 0 && queue.Peek() < cutoff)
+            return _globalRequestTimestamps.Count >= _globalLimitPerMinute;
+        }
+
+        private bool IsPerSourceLimitExceeded(Queue<DateTime> sourceQueue)
+        {
+            return sourceQueue.Count >= _perSourceLimitPerMinute;
+        }
+
+        private void EnsureSourceQueueExists(string source)
+        {
+            if (!_perSourceRequestTimestamps.ContainsKey(source))
+            {
+                _perSourceRequestTimestamps[source] = new Queue<DateTime>();
+            }
+        }
+
+        private void RecordRequest(DateTime timestamp, Queue<DateTime> sourceQueue)
+        {
+            _globalRequestTimestamps.Enqueue(timestamp);
+            sourceQueue.Enqueue(timestamp);
+        }
+
+        private static void RemoveExpiredRequests(Queue<DateTime> queue, DateTime expirationCutoff)
+        {
+            while (queue.Count > 0 && queue.Peek() < expirationCutoff)
             {
                 queue.Dequeue();
             }

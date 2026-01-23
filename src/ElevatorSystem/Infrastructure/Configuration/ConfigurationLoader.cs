@@ -13,7 +13,6 @@ namespace ElevatorSystem.Infrastructure.Configuration
     {
         public static SimulationConfiguration Load(string path = "appsettings.json")
         {
-            // File missing - use defaults
             if (!File.Exists(path))
             {
                 Console.WriteLine($"WARNING: Configuration file '{path}' not found. Using default values.");
@@ -22,7 +21,6 @@ namespace ElevatorSystem.Infrastructure.Configuration
 
             try
             {
-                // Parse JSON
                 var json = File.ReadAllText(path);
                 var config = JsonSerializer.Deserialize<SimulationConfiguration>(json, new JsonSerializerOptions
                 {
@@ -35,9 +33,7 @@ namespace ElevatorSystem.Infrastructure.Configuration
                     return SimulationConfiguration.Default();
                 }
 
-                // Validate (throws on invalid)
                 Validate(config);
-
                 return config;
             }
             catch (JsonException ex)
@@ -47,12 +43,11 @@ namespace ElevatorSystem.Infrastructure.Configuration
             }
             catch (ArgumentException ex)
             {
-                // Validation failed - FAIL FAST
                 Console.WriteLine($"ERROR: Invalid configuration in '{path}':");
                 Console.WriteLine($"  {ex.Message}");
                 Console.WriteLine("\nPlease fix the configuration file and restart.");
                 Environment.Exit(1);
-                return null!;  // Unreachable
+                return null!;
             }
         }
 

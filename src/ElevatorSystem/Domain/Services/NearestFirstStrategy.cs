@@ -14,7 +14,6 @@ namespace ElevatorSystem.Domain.Services
     {
         public Elevator? SelectBestElevator(HallCall hallCall, List<Elevator> elevators)
         {
-            // Pick nearest idle elevator
             return elevators
                 .Where(e => e.State == ElevatorState.IDLE)
                 .OrderBy(e => Math.Abs(e.CurrentFloor - hallCall.Floor))
