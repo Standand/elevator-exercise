@@ -91,6 +91,7 @@ namespace ElevatorSystem.Tests.Infrastructure.Metrics
             metrics.IncrementAcceptedRequests();
             metrics.IncrementRejectedRequests();
             metrics.IncrementCompletedHallCalls();
+            metrics.IncrementCompletedRequests();
             metrics.IncrementRateLimitHits();
             metrics.IncrementQueueFullRejections();
             metrics.IncrementSafetyTimeoutHits();
@@ -102,9 +103,55 @@ namespace ElevatorSystem.Tests.Infrastructure.Metrics
             Assert.Equal(1, snapshot.AcceptedRequests);
             Assert.Equal(1, snapshot.RejectedRequests);
             Assert.Equal(1, snapshot.CompletedHallCalls);
+            Assert.Equal(1, snapshot.CompletedRequests);
             Assert.Equal(1, snapshot.RateLimitHits);
             Assert.Equal(1, snapshot.QueueFullRejections);
             Assert.Equal(1, snapshot.SafetyTimeoutHits);
+        }
+
+        [Fact]
+        [Trait("Category", "Unit")]
+        [Trait("Priority", "P2")]
+        public void IncrementCompletedRequests_UpdatesSnapshot()
+        {
+            // Arrange
+            var metrics = new SystemMetrics();
+            
+            // Act
+            metrics.IncrementCompletedRequests();
+            metrics.IncrementCompletedRequests();
+            metrics.IncrementCompletedRequests();
+            var snapshot = metrics.GetSnapshot();
+            
+            // Assert
+            Assert.Equal(3, snapshot.CompletedRequests);
+        }
+
+        [Fact]
+        [Trait("Category", "Unit")]
+        [Trait("Priority", "P3")]
+        public void IncrementCompletedRequests_ThreadSafe_ConcurrentIncrements()
+        {
+            // Arrange
+            var metrics = new SystemMetrics();
+            var tasks = new List<Task>();
+            
+            // Act - 5 threads, each incrementing 50 times
+            for (int i = 0; i < 5; i++)
+            {
+                tasks.Add(Task.Run(() =>
+                {
+                    for (int j = 0; j < 50; j++)
+                    {
+                        metrics.IncrementCompletedRequests();
+                    }
+                }));
+            }
+            Task.WaitAll(tasks.ToArray());
+            var snapshot = metrics.GetSnapshot();
+            
+            // Assert - No lost increments
+            Assert.Equal(250, snapshot.CompletedRequests);
         }
         
         [Fact]

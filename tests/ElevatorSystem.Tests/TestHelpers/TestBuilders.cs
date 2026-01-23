@@ -22,6 +22,7 @@ namespace ElevatorSystem.Tests.TestHelpers
             int elevatorCount = 4,
             int maxFloors = 10,
             int doorOpenTicks = 3,
+            int elevatorMovementTicks = 1,
             ITimeService? timeService = null)
         {
             var logger = new MockLogger();
@@ -32,7 +33,7 @@ namespace ElevatorSystem.Tests.TestHelpers
                 MaxFloors = maxFloors,
                 ElevatorCount = elevatorCount,
                 DoorOpenTicks = doorOpenTicks,
-                ElevatorMovementTicks = 1,
+                ElevatorMovementTicks = elevatorMovementTicks,
                 TickIntervalMs = 1000,
                 RequestIntervalSeconds = 5
             };

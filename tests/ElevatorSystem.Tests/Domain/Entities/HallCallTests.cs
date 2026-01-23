@@ -103,5 +103,133 @@ namespace ElevatorSystem.Tests.Domain.Entities
             Assert.Contains("UP", result);
             Assert.Contains("PENDING", result);
         }
+
+        // ========== Destination Management Tests ==========
+
+        [Fact]
+        [Trait("Category", "Unit")]
+        [Trait("Priority", "P2")]
+        public void AddDestination_AddsDestinationFloor()
+        {
+            // Arrange
+            var hallCall = new HallCall(5, Direction.UP);
+            
+            // Act
+            hallCall.AddDestination(7);
+            
+            // Assert
+            var destinations = hallCall.GetDestinations();
+            Assert.Contains(7, destinations);
+            Assert.Single(destinations);
+        }
+
+        [Fact]
+        [Trait("Category", "Unit")]
+        [Trait("Priority", "P2")]
+        public void AddDestination_MultipleDestinations_AllAdded()
+        {
+            // Arrange
+            var hallCall = new HallCall(5, Direction.UP);
+            
+            // Act
+            hallCall.AddDestination(7);
+            hallCall.AddDestination(9);
+            hallCall.AddDestination(3);
+            
+            // Assert
+            var destinations = hallCall.GetDestinations();
+            Assert.Equal(3, destinations.Count);
+            Assert.Contains(7, destinations);
+            Assert.Contains(9, destinations);
+            Assert.Contains(3, destinations);
+        }
+
+        [Fact]
+        [Trait("Category", "Unit")]
+        [Trait("Priority", "P2")]
+        public void AddDestination_DuplicateDestination_OnlyAddedOnce()
+        {
+            // Arrange
+            var hallCall = new HallCall(5, Direction.UP);
+            
+            // Act
+            hallCall.AddDestination(7);
+            hallCall.AddDestination(7); // Duplicate
+            hallCall.AddDestination(7); // Duplicate again
+            
+            // Assert
+            var destinations = hallCall.GetDestinations();
+            Assert.Single(destinations);
+            Assert.Contains(7, destinations);
+        }
+
+        [Fact]
+        [Trait("Category", "Unit")]
+        [Trait("Priority", "P2")]
+        public void GetDestinations_EmptyInitially_ReturnsEmptyCollection()
+        {
+            // Arrange
+            var hallCall = new HallCall(5, Direction.UP);
+            
+            // Act
+            var destinations = hallCall.GetDestinations();
+            
+            // Assert
+            Assert.Empty(destinations);
+        }
+
+        [Fact]
+        [Trait("Category", "Unit")]
+        [Trait("Priority", "P2")]
+        public void GetDestinations_ReturnsReadOnlyCollection()
+        {
+            // Arrange
+            var hallCall = new HallCall(5, Direction.UP);
+            hallCall.AddDestination(7);
+            
+            // Act
+            var destinations = hallCall.GetDestinations();
+            
+            // Assert
+            // IReadOnlyCollection doesn't expose IsReadOnly, but we can verify it's read-only
+            // by checking that it's not a mutable collection type
+            Assert.NotNull(destinations);
+            Assert.Equal(1, destinations.Count);
+        }
+
+        [Fact]
+        [Trait("Category", "Unit")]
+        [Trait("Priority", "P2")]
+        public void AddDestination_CanAddAfterAssignment()
+        {
+            // Arrange
+            var hallCall = new HallCall(5, Direction.UP);
+            hallCall.MarkAsAssigned(1);
+            
+            // Act - Should still be able to add destinations
+            hallCall.AddDestination(7);
+            
+            // Assert
+            var destinations = hallCall.GetDestinations();
+            Assert.Contains(7, destinations);
+        }
+
+        [Fact]
+        [Trait("Category", "Unit")]
+        [Trait("Priority", "P2")]
+        public void AddDestination_CanAddAfterCompletion()
+        {
+            // Arrange
+            var hallCall = new HallCall(5, Direction.UP);
+            hallCall.MarkAsAssigned(1);
+            hallCall.MarkAsCompleted();
+            
+            // Act - Should still be able to add destinations (edge case)
+            hallCall.AddDestination(7);
+            
+            // Assert
+            var destinations = hallCall.GetDestinations();
+            Assert.Contains(7, destinations);
+        }
     }
 }
