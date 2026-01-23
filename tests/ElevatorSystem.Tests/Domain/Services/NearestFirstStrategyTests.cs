@@ -23,12 +23,12 @@ namespace ElevatorSystem.Tests.Domain.Services
             var strategy = new NearestFirstStrategy();
             var hallCall = new HallCall(5, Direction.UP);
             
-            var elevator1 = TestBuilders.CreateElevator(id: 1, currentFloor: 0); // At floor 0, IDLE
-            var elevator2 = TestBuilders.CreateElevator(id: 2, currentFloor: 0); // At floor 0
+            var elevator1 = TestBuilders.CreateElevator(id: 1, currentFloor: 0, elevatorMovementTicks: 1); // At floor 0, IDLE
+            var elevator2 = TestBuilders.CreateElevator(id: 2, currentFloor: 0, elevatorMovementTicks: 1); // At floor 0
             
             // Move elevator2 to floor 4 and make it IDLE
             elevator2.AddDestination(4);
-            // IDLE -> MOVING (tick 1), then move 1->2->3->4 (ticks 2-5), arrive at 4 (tick 6)
+            // IDLE -> MOVING (tick 1), then move 0->1->2->3->4 (ticks 2-6), arrive at 4 (tick 6)
             for (int i = 0; i < 6; i++) elevator2.ProcessTick(); // Now at floor 4, LOADING
             // Wait for door timer (default 3 ticks) to complete LOADING -> IDLE
             for (int i = 0; i < 3; i++) elevator2.ProcessTick();
@@ -52,8 +52,9 @@ namespace ElevatorSystem.Tests.Domain.Services
             var strategy = new NearestFirstStrategy();
             var hallCall = new HallCall(5, Direction.UP);
             
-            var elevator1 = TestBuilders.CreateElevator(id: 1, currentFloor: 0);
+            var elevator1 = TestBuilders.CreateElevator(id: 1, currentFloor: 0, elevatorMovementTicks: 1);
             elevator1.AddDestination(5);
+            // IDLE -> MOVING (tick 1), move 0->1->2->3->4->5 (ticks 2-7), arrive at 5 (tick 7)
             for (int i = 0; i < 7; i++) elevator1.ProcessTick(); // At floor 5 in LOADING
             
             var elevators = new List<Elevator> { elevator1 };

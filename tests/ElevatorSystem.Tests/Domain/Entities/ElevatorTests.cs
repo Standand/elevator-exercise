@@ -36,12 +36,12 @@ namespace ElevatorSystem.Tests.Domain.Entities
         public void ProcessTick_MovingUp_AdvancesOneFloor()
         {
             // Arrange
-            var elevator = TestBuilders.CreateElevator(currentFloor: 0);
+            var elevator = TestBuilders.CreateElevator(currentFloor: 0, elevatorMovementTicks: 1);
             elevator.AddDestination(5);
-            elevator.ProcessTick(); // Transition to MOVING
+            elevator.ProcessTick(); // Transition to MOVING (timer = 1)
             
             // Act
-            elevator.ProcessTick(); // Move one floor up
+            elevator.ProcessTick(); // Decrement timer to 0, move one floor up
             
             // Assert
             Assert.Equal(1, elevator.CurrentFloor);
@@ -54,10 +54,10 @@ namespace ElevatorSystem.Tests.Domain.Entities
         public void ProcessTick_ArrivesAtDestination_TransitionsToLoading()
         {
             // Arrange
-            var elevator = TestBuilders.CreateElevator(currentFloor: 0);
+            var elevator = TestBuilders.CreateElevator(currentFloor: 0, elevatorMovementTicks: 1);
             elevator.AddDestination(1);
-            elevator.ProcessTick(); // Tick 1: IDLE → MOVING
-            elevator.ProcessTick(); // Tick 2: Move from 0 to 1
+            elevator.ProcessTick(); // Tick 1: IDLE → MOVING (timer = 1)
+            elevator.ProcessTick(); // Tick 2: Decrement timer to 0, move from 0 to 1
             
             // Act
             elevator.ProcessTick(); // Tick 3: Check arrival, transition to LOADING
@@ -73,16 +73,16 @@ namespace ElevatorSystem.Tests.Domain.Entities
         public void ProcessTick_LoadingDoorTimerExpires_TransitionsToIdle()
         {
             // Arrange
-            var elevator = TestBuilders.CreateElevator(currentFloor: 0, doorOpenTicks: 3);
+            var elevator = TestBuilders.CreateElevator(currentFloor: 0, doorOpenTicks: 3, elevatorMovementTicks: 1);
             elevator.AddDestination(1);
-            elevator.ProcessTick(); // Tick 1: IDLE → MOVING
-            elevator.ProcessTick(); // Tick 2: Move to floor 1
-            elevator.ProcessTick(); // Tick 3: Arrive → LOADING (timer = 3)
+            elevator.ProcessTick(); // Tick 1: IDLE → MOVING (timer = 1)
+            elevator.ProcessTick(); // Tick 2: Decrement timer to 0, move to floor 1
+            elevator.ProcessTick(); // Tick 3: Arrive → LOADING (door timer = 3)
             
             // Act - Wait for door timer to expire (3 ticks)
-            elevator.ProcessTick(); // Tick 4: Timer = 2
-            elevator.ProcessTick(); // Tick 5: Timer = 1
-            elevator.ProcessTick(); // Tick 6: Timer = 0 → IDLE
+            elevator.ProcessTick(); // Tick 4: Door timer = 2
+            elevator.ProcessTick(); // Tick 5: Door timer = 1
+            elevator.ProcessTick(); // Tick 6: Door timer = 0 → IDLE
             
             // Assert
             Assert.Equal(ElevatorState.IDLE, elevator.State);
@@ -95,15 +95,15 @@ namespace ElevatorSystem.Tests.Domain.Entities
         public void ProcessTick_LoadingWithMoreDestinations_ContinuesMoving()
         {
             // Arrange
-            var elevator = TestBuilders.CreateElevator(currentFloor: 0, doorOpenTicks: 1);
+            var elevator = TestBuilders.CreateElevator(currentFloor: 0, doorOpenTicks: 1, elevatorMovementTicks: 1);
             elevator.AddDestination(1);
             elevator.AddDestination(5);
-            elevator.ProcessTick(); // Tick 1: IDLE → MOVING
-            elevator.ProcessTick(); // Tick 2: Move to 1
-            elevator.ProcessTick(); // Tick 3: Arrive → LOADING (timer = 1)
+            elevator.ProcessTick(); // Tick 1: IDLE → MOVING (timer = 1)
+            elevator.ProcessTick(); // Tick 2: Decrement timer to 0, move to 1
+            elevator.ProcessTick(); // Tick 3: Arrive → LOADING (door timer = 1)
             
             // Act
-            elevator.ProcessTick(); // Tick 4: Timer = 0 → MOVING (continue to floor 5)
+            elevator.ProcessTick(); // Tick 4: Door timer = 0 → MOVING (continue to floor 5, movement timer = 1)
             
             // Assert
             Assert.Equal(ElevatorState.MOVING, elevator.State);
@@ -116,10 +116,10 @@ namespace ElevatorSystem.Tests.Domain.Entities
         public void ProcessTick_StuckInLoading_SafetyTimeoutForcesTransition()
         {
             // Arrange
-            var elevator = TestBuilders.CreateElevator(currentFloor: 0, doorOpenTicks: 100); // Very long timer
+            var elevator = TestBuilders.CreateElevator(currentFloor: 0, doorOpenTicks: 100, elevatorMovementTicks: 1); // Very long timer
             elevator.AddDestination(1);
-            elevator.ProcessTick(); // Tick 1: IDLE → MOVING
-            elevator.ProcessTick(); // Tick 2: Move to floor 1
+            elevator.ProcessTick(); // Tick 1: IDLE → MOVING (timer = 1)
+            elevator.ProcessTick(); // Tick 2: Decrement timer to 0, move to floor 1
             elevator.ProcessTick(); // Tick 3: Arrive → LOADING
             
             // Act - Simulate 11 more ticks (safety timeout is 10)
@@ -192,12 +192,12 @@ namespace ElevatorSystem.Tests.Domain.Entities
         public void CanAcceptHallCall_AtCurrentFloorInLoading_ReturnsFalse()
         {
             // Arrange
-            var elevator = TestBuilders.CreateElevator(currentFloor: 0);
+            var elevator = TestBuilders.CreateElevator(currentFloor: 0, elevatorMovementTicks: 1);
             elevator.AddDestination(5);
-            elevator.ProcessTick(); // IDLE → MOVING
+            elevator.ProcessTick(); // IDLE → MOVING (timer = 1)
             for (int i = 0; i < 5; i++)
             {
-                elevator.ProcessTick(); // Move to floor 5
+                elevator.ProcessTick(); // Move one floor per tick (5 floors = 5 ticks)
             }
             // Now at floor 5 in LOADING state
             var hallCall = new HallCall(5, Direction.UP);

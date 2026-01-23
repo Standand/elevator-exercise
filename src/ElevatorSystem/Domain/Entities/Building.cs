@@ -43,7 +43,7 @@ namespace ElevatorSystem.Domain.Entities
 
             _maxFloors = config.MaxFloors;
 
-            _elevators = InitializeElevators(config.ElevatorCount, config.MaxFloors, config.DoorOpenTicks, logger);
+            _elevators = InitializeElevators(config.ElevatorCount, config.MaxFloors, config.DoorOpenTicks, config.ElevatorMovementTicks, logger);
 
             _hallCallQueue = new HallCallQueue();
 
@@ -257,12 +257,12 @@ namespace ElevatorSystem.Domain.Entities
             }
         }
 
-        private static List<Elevator> InitializeElevators(int elevatorCount, int maxFloors, int doorOpenTicks, ILogger logger)
+        private static List<Elevator> InitializeElevators(int elevatorCount, int maxFloors, int doorOpenTicks, int movementTicks, ILogger logger)
         {
             var elevators = new List<Elevator>(elevatorCount);
             for (int elevatorId = 1; elevatorId <= elevatorCount; elevatorId++)
             {
-                elevators.Add(new Elevator(elevatorId, maxFloors, doorOpenTicks, logger));
+                elevators.Add(new Elevator(elevatorId, maxFloors, doorOpenTicks, movementTicks, logger));
             }
             return elevators;
         }

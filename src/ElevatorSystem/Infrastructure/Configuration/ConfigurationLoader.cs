@@ -67,6 +67,9 @@ namespace ElevatorSystem.Infrastructure.Configuration
             if (config.DoorOpenTicks < 1 || config.DoorOpenTicks > 10)
                 errors.Add($"DoorOpenTicks must be between 1 and 10, got {config.DoorOpenTicks}");
 
+            if (config.ElevatorMovementTicks < 1 || config.ElevatorMovementTicks > 10)
+                errors.Add($"ElevatorMovementTicks must be between 1 and 10, got {config.ElevatorMovementTicks}");
+
             if (config.RequestIntervalSeconds < 1 || config.RequestIntervalSeconds > 60)
                 errors.Add($"RequestIntervalSeconds must be between 1 and 60, got {config.RequestIntervalSeconds}");
 

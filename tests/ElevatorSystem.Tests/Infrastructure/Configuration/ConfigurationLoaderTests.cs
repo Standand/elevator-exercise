@@ -24,6 +24,7 @@ namespace ElevatorSystem.Tests.Infrastructure.Configuration
                 ""ElevatorCount"": 6,
                 ""TickIntervalMs"": 500,
                 ""DoorOpenTicks"": 2,
+                ""ElevatorMovementTicks"": 1,
                 ""RequestIntervalSeconds"": 10
             }";
             File.WriteAllText(TestConfigFile, json);
@@ -74,6 +75,7 @@ namespace ElevatorSystem.Tests.Infrastructure.Configuration
                 ""ElevatorCount"": 4,
                 ""TickIntervalMs"": 1000,
                 ""DoorOpenTicks"": 3,
+                ""ElevatorMovementTicks"": 1,
                 ""RequestIntervalSeconds"": 5
             }}";
             File.WriteAllText(TestConfigFile, json);
@@ -109,6 +111,7 @@ namespace ElevatorSystem.Tests.Infrastructure.Configuration
                 ""ElevatorCount"": {invalidCount},
                 ""TickIntervalMs"": 1000,
                 ""DoorOpenTicks"": 3,
+                ""ElevatorMovementTicks"": 1,
                 ""RequestIntervalSeconds"": 5
             }}";
             File.WriteAllText(TestConfigFile, json);
@@ -138,6 +141,7 @@ namespace ElevatorSystem.Tests.Infrastructure.Configuration
                 ""ElevatorCount"": 4,
                 ""TickIntervalMs"": 1000,
                 ""DoorOpenTicks"": 3,
+                ""ElevatorMovementTicks"": 1,
                 ""RequestIntervalSeconds"": 5
             }";
             File.WriteAllText(TestConfigFile, json);

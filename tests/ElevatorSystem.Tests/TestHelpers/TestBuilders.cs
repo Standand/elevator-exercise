@@ -32,6 +32,7 @@ namespace ElevatorSystem.Tests.TestHelpers
                 MaxFloors = maxFloors,
                 ElevatorCount = elevatorCount,
                 DoorOpenTicks = doorOpenTicks,
+                ElevatorMovementTicks = 1,
                 TickIntervalMs = 1000,
                 RequestIntervalSeconds = 5
             };

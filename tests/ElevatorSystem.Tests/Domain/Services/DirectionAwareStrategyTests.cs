@@ -107,9 +107,10 @@ namespace ElevatorSystem.Tests.Domain.Services
             var strategy = new DirectionAwareStrategy();
             var hallCall = new HallCall(5, Direction.UP);
             
-            var elevator1 = TestBuilders.CreateElevator(id: 1, currentFloor: 0);
+            var elevator1 = TestBuilders.CreateElevator(id: 1, currentFloor: 0, elevatorMovementTicks: 1);
             elevator1.AddDestination(5);
-            elevator1.ProcessTick(); // IDLE → MOVING
+            elevator1.ProcessTick(); // IDLE → MOVING (timer = 1)
+            // Move 0->1->2->3->4->5 (6 movements = 6 ticks), arrive at 5 (tick 7)
             for (int i = 0; i < 6; i++) elevator1.ProcessTick(); // Move to floor 5 and LOADING
             
             var elevators = new List<Elevator> { elevator1 };

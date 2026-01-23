@@ -22,16 +22,19 @@ namespace ElevatorSystem.Domain.Entities
         private readonly ILogger _logger;
         private readonly int _maxFloors;
         private readonly int _doorOpenDuration;
+        private readonly int _movementTicks;
         private readonly DestinationSet _destinations;
         private readonly List<Guid> _assignedHallCallIds;
         private int _doorTimer;
         private int _loadingStateTickCount;
+        private int _movementTimer;
 
-        public Elevator(int id, int maxFloors, int doorOpenDuration, ILogger logger)
+        public Elevator(int id, int maxFloors, int doorOpenDuration, int movementTicks, ILogger logger)
         {
             Id = id;
             _maxFloors = maxFloors;
             _doorOpenDuration = doorOpenDuration;
+            _movementTicks = movementTicks;
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
 
             CurrentFloor = 0;
@@ -41,6 +44,7 @@ namespace ElevatorSystem.Domain.Entities
             _assignedHallCallIds = new List<Guid>();
             _doorTimer = 0;
             _loadingStateTickCount = 0;
+            _movementTimer = 0;
         }
 
         /// <summary>
@@ -153,6 +157,7 @@ namespace ElevatorSystem.Domain.Entities
             Direction = nextDestination > CurrentFloor ? ValueObjects.Direction.UP : ValueObjects.Direction.DOWN;
             _destinations.SetDirection(Direction);
             State = ElevatorState.MOVING;
+            _movementTimer = _movementTicks; // Initialize movement timer
             _logger.LogInfo($"Elevator {Id} starting to move {Direction} from floor {CurrentFloor}");
         }
 
@@ -181,7 +186,18 @@ namespace ElevatorSystem.Domain.Entities
             }
             else
             {
-                MoveOneFloorTowards(nextDestination);
+                // Wait for movement timer before moving one floor
+                _movementTimer--;
+                
+                if (_movementTimer <= 0)
+                {
+                    MoveOneFloorTowards(nextDestination);
+                    _movementTimer = _movementTicks; // Reset timer for next movement
+                }
+                else
+                {
+                    _logger.LogDebug($"Elevator {Id} movement timer: {_movementTimer}");
+                }
             }
         }
 
@@ -287,6 +303,7 @@ namespace ElevatorSystem.Domain.Entities
             Direction = nextDestination > CurrentFloor ? ValueObjects.Direction.UP : ValueObjects.Direction.DOWN;
             _destinations.SetDirection(Direction);
             State = ElevatorState.MOVING;
+            _movementTimer = _movementTicks; // Initialize movement timer
             _logger.LogInfo($"Elevator {Id} continuing {Direction} from floor {CurrentFloor}");
         }
 
