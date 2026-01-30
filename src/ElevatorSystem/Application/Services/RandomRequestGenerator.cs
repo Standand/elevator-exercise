@@ -51,7 +51,7 @@ namespace ElevatorSystem.Application.Services
                     {
                         var request = result.Value!;
                         var direction = destinationFloor > sourceFloor ? "UP" : "DOWN";
-                        _logger.LogInfo($"Generated passenger journey: Floor {sourceFloor} → {destinationFloor} ({direction}) [Request: {request.Id}]");
+                        // Request creation is already logged by Building
                     }
                     else
                     {
@@ -68,7 +68,7 @@ namespace ElevatorSystem.Application.Services
             catch (Exception ex)
             {
                 _logger.LogError($"Error generating request: {ex.Message}");
-                _logger.LogDebug($"Stack trace: {ex.StackTrace}");
+                // Stack trace removed for production
                 await Task.Delay(1000, cancellationToken);
             }
 

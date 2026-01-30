@@ -63,7 +63,6 @@ namespace ElevatorSystem.Application.Services
             catch (Exception ex)
             {
                 _logger.LogError($"FATAL: Unexpected exception in simulation loop: {ex.Message}");
-                _logger.LogError($"Stack trace: {ex.StackTrace}");
                 throw;
             }
 
@@ -87,7 +86,11 @@ namespace ElevatorSystem.Application.Services
                 })
                 .ToList();
             
-            _logger.LogInfo($"[ELEVATOR STATUS] {string.Join(" | ", elevatorStatuses)}");
+            var compactStatuses = status.Elevators
+                .OrderBy(e => e.Id)
+                .Select(e => $"E{e.Id}:F{e.CurrentFloor} {e.State} {e.Direction} D:[{string.Join(",", e.Destinations)}]")
+                .ToList();
+            _logger.LogInfo($"[STATUS] {string.Join(" | ", compactStatuses)}");
         }
     }
 }

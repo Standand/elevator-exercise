@@ -21,14 +21,14 @@ namespace ElevatorSystem.Domain.Entities
         
         private readonly HashSet<int> _destinationFloors = new HashSet<int>();
 
-        public HallCall(int floor, Direction direction)
+        public HallCall(int floor, Direction direction, DateTime? createdAt = null)
         {
             Id = Guid.NewGuid();
             Floor = floor;
             Direction = direction ?? throw new ArgumentNullException(nameof(direction));
             Status = HallCallStatus.PENDING;
             AssignedElevatorId = null;
-            CreatedAt = DateTime.UtcNow;
+            CreatedAt = createdAt ?? DateTime.UtcNow;
         }
         
         /// <summary>
@@ -45,6 +45,14 @@ namespace ElevatorSystem.Domain.Entities
         public IReadOnlyCollection<int> GetDestinations()
         {
             return _destinationFloors.ToList().AsReadOnly();
+        }
+
+        /// <summary>
+        /// Gets the age of this hall call (time since creation).
+        /// </summary>
+        public TimeSpan GetAge()
+        {
+            return DateTime.UtcNow - CreatedAt;
         }
 
         /// <summary>

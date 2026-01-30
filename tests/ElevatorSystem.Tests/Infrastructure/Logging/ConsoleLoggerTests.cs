@@ -28,7 +28,7 @@ namespace ElevatorSystem.Tests.Infrastructure.Logging
                 var result = output.ToString();
                 
                 // Assert
-                Assert.Contains("DEBUG", result);
+                Assert.Contains("DBG", result);
                 Assert.Contains("Debug message", result);
             }
             finally
@@ -56,7 +56,7 @@ namespace ElevatorSystem.Tests.Infrastructure.Logging
                 var result = output.ToString();
                 
                 // Assert
-                Assert.DoesNotContain("DEBUG", result);
+                Assert.DoesNotContain("DBG", result);
             }
             finally
             {
@@ -83,7 +83,7 @@ namespace ElevatorSystem.Tests.Infrastructure.Logging
                 var result = output.ToString();
                 
                 // Assert
-                Assert.Contains("INFO", result);
+                Assert.Contains("INF", result);
                 Assert.Contains("Info message", result);
             }
             finally
@@ -111,7 +111,7 @@ namespace ElevatorSystem.Tests.Infrastructure.Logging
                 var result = output.ToString();
                 
                 // Assert
-                Assert.Contains("WARN", result);
+                Assert.Contains("WRN", result);
                 Assert.Contains("Warning message", result);
             }
             finally
@@ -139,7 +139,7 @@ namespace ElevatorSystem.Tests.Infrastructure.Logging
                 var result = output.ToString();
                 
                 // Assert
-                Assert.Contains("ERROR", result);
+                Assert.Contains("ERR", result);
                 Assert.Contains("Error message", result);
             }
             finally
@@ -170,10 +170,10 @@ namespace ElevatorSystem.Tests.Infrastructure.Logging
                 var result = output.ToString();
                 
                 // Assert
-                Assert.DoesNotContain("DEBUG", result);
-                Assert.Contains("INFO", result);
-                Assert.Contains("WARN", result);
-                Assert.Contains("ERROR", result);
+                Assert.DoesNotContain("DBG", result);
+                Assert.Contains("INF", result);
+                Assert.Contains("WRN", result);
+                Assert.Contains("ERR", result);
             }
             finally
             {

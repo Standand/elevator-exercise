@@ -49,7 +49,7 @@ namespace ElevatorSystem.Domain.Entities
             _hallCallQueue = new HallCallQueue();
             _requests = new Dictionary<Guid, Request>();
 
-            _logger.LogInfo($"Building initialized: {config.ElevatorCount} elevators, {config.MaxFloors} floors");
+            _logger.LogInfo($"Initialized: {config.ElevatorCount} elevators, {config.MaxFloors} floors");
         }
 
         /// <summary>
@@ -122,11 +122,11 @@ namespace ElevatorSystem.Domain.Entities
                     // Create new hall call
                     hallCall = new HallCall(sourceFloor, direction);
                     _hallCallQueue.Add(hallCall);
-                    _logger.LogInfo($"HallCall {hallCall.Id} created: Floor {sourceFloor}, Direction {direction}");
+                    _logger.LogDebug($"HallCall {GetShortId(hallCall.Id)} created: Floor {sourceFloor}, {direction}");
                 }
                 else
                 {
-                    _logger.LogInfo($"Reusing existing HallCall {hallCall.Id} at Floor {sourceFloor}, Direction {direction}");
+                    _logger.LogDebug($"Reusing HallCall {GetShortId(hallCall.Id)} at Floor {sourceFloor}, {direction}");
                 }
 
                 // 6. Add destination to hall call (passengers will board when elevator arrives)
@@ -136,7 +136,7 @@ namespace ElevatorSystem.Domain.Entities
                 var journey = Journey.Of(sourceFloor, destinationFloor);
                 var request = new Request(hallCall.Id, journey);
                 _requests[request.Id] = request; // Store request for tracking
-                _logger.LogInfo($"Request {request.Id} created: {sourceFloor} → {destinationFloor}");
+                _logger.LogInfo($"[REQUEST] Floor {sourceFloor} → {destinationFloor}");
 
                 // Note: Passenger destinations are NOT added to elevator here.
                 // They will be added when passengers board at the hall call floor.
@@ -216,7 +216,7 @@ namespace ElevatorSystem.Domain.Entities
                 var hallCall = new HallCall(floor, direction);
                 _hallCallQueue.Add(hallCall);
                 _metrics.IncrementAcceptedRequests();
-                _logger.LogInfo($"HallCall {hallCall.Id} created: Floor {floor}, Direction {direction}");
+                _logger.LogDebug($"HallCall {GetShortId(hallCall.Id)} created: Floor {floor}, {direction}");
 
                 return Result<HallCall>.Success(hallCall);
             }
@@ -313,7 +313,7 @@ namespace ElevatorSystem.Domain.Entities
             // Note: AssignHallCall already adds the hall call floor to elevator destinations.
             // Passenger destinations will be added when passengers board at the hall call floor.
             
-            _logger.LogInfo($"HallCall {hallCall.Id} assigned to Elevator {bestElevator.Id} with {hallCall.GetDestinations().Count} destination(s)");
+            _logger.LogInfo($"[ASSIGN] E{bestElevator.Id} → Floor {hallCall.Floor} {hallCall.Direction}");
         }
 
         private void CompleteHallCalls()
@@ -354,7 +354,7 @@ namespace ElevatorSystem.Domain.Entities
                 hallCall.MarkAsCompleted();
                 elevator.RemoveHallCallId(hallCall.Id);
                 _metrics.IncrementCompletedHallCalls();
-                _logger.LogInfo($"HallCall {hallCall.Id} completed by Elevator {elevator.Id} at floor {elevator.CurrentFloor}");
+                _logger.LogDebug($"HallCall {GetShortId(hallCall.Id)} completed by E{elevator.Id} at floor {elevator.CurrentFloor}");
             }
         }
 
@@ -367,7 +367,7 @@ namespace ElevatorSystem.Domain.Entities
             foreach (var request in requestsForHallCall)
             {
                 request.MarkAsInTransit();
-                _logger.LogDebug($"Request {request.Id} marked as IN_TRANSIT (passenger boarded at floor {request.Journey.SourceFloor})");
+                _logger.LogDebug($"Request {GetShortId(request.Id)} IN_TRANSIT");
             }
         }
 
@@ -394,7 +394,7 @@ namespace ElevatorSystem.Domain.Entities
             {
                 request.MarkAsCompleted();
                 _metrics.IncrementCompletedRequests();
-                _logger.LogInfo($"Request {request.Id} completed: passenger reached destination floor {elevator.CurrentFloor}");
+                _logger.LogInfo($"[COMPLETE] Floor {elevator.CurrentFloor}");
             }
         }
 
@@ -406,6 +406,11 @@ namespace ElevatorSystem.Domain.Entities
                     hc.AssignedElevatorId == elevator.Id &&
                     hc.Floor == elevator.CurrentFloor)
                 .ToList();
+        }
+
+        private static string GetShortId(Guid id)
+        {
+            return id.ToString().Substring(0, 8);
         }
     }
 }

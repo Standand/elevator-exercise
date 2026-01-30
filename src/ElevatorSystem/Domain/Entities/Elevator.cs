@@ -108,7 +108,7 @@ namespace ElevatorSystem.Domain.Entities
                 _destinations.Add(hallCall.Floor);
             }
             
-            _logger.LogInfo($"Elevator {Id} assigned HallCall {hallCall.Id} (Floor {hallCall.Floor})");
+            _logger.LogDebug($"E{Id} assigned HallCall Floor {hallCall.Floor}");
         }
 
         /// <summary>
@@ -117,7 +117,7 @@ namespace ElevatorSystem.Domain.Entities
         public void AddDestination(int floor)
         {
             _destinations.Add(floor);
-            _logger.LogInfo($"Elevator {Id} destination added: Floor {floor}");
+            _logger.LogDebug($"E{Id} destination added: Floor {floor}");
         }
 
         /// <summary>
@@ -169,7 +169,7 @@ namespace ElevatorSystem.Domain.Entities
             _destinations.SetDirection(Direction);
             State = ElevatorState.MOVING;
             _movementTimer = _movementTicks; // Initialize movement timer
-            _logger.LogInfo($"Elevator {Id} starting to move {Direction} from floor {CurrentFloor}");
+            _logger.LogInfo($"[MOVE] E{Id} {Direction} from Floor {CurrentFloor}");
         }
 
         private void HandleAlreadyAtDestination(int destination)
@@ -217,7 +217,7 @@ namespace ElevatorSystem.Domain.Entities
             Direction = ValueObjects.Direction.IDLE;
             _destinations.SetDirection(Direction);
             State = ElevatorState.IDLE;
-            _logger.LogInfo($"Elevator {Id} became IDLE at floor {CurrentFloor}");
+            _logger.LogDebug($"E{Id} IDLE at Floor {CurrentFloor}");
         }
 
         private void TransitionToLoading()
@@ -225,7 +225,7 @@ namespace ElevatorSystem.Domain.Entities
             State = ElevatorState.LOADING;
             _doorTimer = _doorOpenDuration;
             _loadingStateTickCount = 0;
-            _logger.LogInfo($"Elevator {Id} arrived at floor {CurrentFloor}, doors opening");
+            _logger.LogInfo($"[ARRIVE] E{Id} at Floor {CurrentFloor}");
         }
 
         private void MoveOneFloorTowards(int destination)
@@ -281,7 +281,7 @@ namespace ElevatorSystem.Domain.Entities
         private void TransitionFromLoading()
         {
             _destinations.Remove(CurrentFloor);
-            _logger.LogInfo($"Elevator {Id} doors closed at floor {CurrentFloor}");
+            _logger.LogDebug($"E{Id} doors closed at Floor {CurrentFloor}");
 
             if (_destinations.IsEmpty)
             {
@@ -298,7 +298,7 @@ namespace ElevatorSystem.Domain.Entities
             Direction = ValueObjects.Direction.IDLE;
             _destinations.SetDirection(Direction);
             State = ElevatorState.IDLE;
-            _logger.LogInfo($"Elevator {Id} became IDLE at floor {CurrentFloor}");
+            _logger.LogDebug($"E{Id} IDLE at Floor {CurrentFloor}");
         }
 
         private void ContinueMovingToNextDestination()
@@ -315,7 +315,7 @@ namespace ElevatorSystem.Domain.Entities
             _destinations.SetDirection(Direction);
             State = ElevatorState.MOVING;
             _movementTimer = _movementTicks; // Initialize movement timer
-            _logger.LogInfo($"Elevator {Id} continuing {Direction} from floor {CurrentFloor}");
+            _logger.LogDebug($"E{Id} continuing {Direction} from Floor {CurrentFloor}");
         }
 
         private void HandleInvalidNextDestination(int nextDestination)
@@ -347,6 +347,60 @@ namespace ElevatorSystem.Domain.Entities
         public List<Guid> GetAssignedHallCallIds()
         {
             return _assignedHallCallIds.ToList();
+        }
+
+        /// <summary>
+        /// Gets the furthest destination in the current direction (for scheduling calculations).
+        /// Returns null if no destinations exist.
+        /// </summary>
+        public int? GetFurthestDestination()
+        {
+            if (_destinations.IsEmpty)
+            {
+                return null;
+            }
+            return _destinations.GetFurthestDestination();
+        }
+
+        /// <summary>
+        /// Gets the movement time per floor (in ticks).
+        /// </summary>
+        public int GetMovementTicks() => _movementTicks;
+
+        /// <summary>
+        /// Gets the door open duration (loading time in ticks).
+        /// </summary>
+        public int GetDoorOpenDuration() => _doorOpenDuration;
+
+        /// <summary>
+        /// Gets the number of destinations (stops) the elevator has.
+        /// Used for load consideration in scheduling.
+        /// </summary>
+        public int GetDestinationCount() => _destinations.Count;
+
+        /// <summary>
+        /// Gets the number of intermediate stops between current floor and target floor.
+        /// Only counts stops that are between current floor and target in the current direction.
+        /// </summary>
+        public int GetIntermediateStopsCount(int targetFloor)
+        {
+            if (State != ElevatorState.MOVING || Direction == Direction.IDLE)
+                return 0;
+
+            var destinations = _destinations.GetAll();
+            
+            if (Direction == ValueObjects.Direction.UP)
+            {
+                // Count stops between current floor (exclusive) and target floor (exclusive)
+                return destinations.Count(d => d > CurrentFloor && d < targetFloor);
+            }
+            else if (Direction == ValueObjects.Direction.DOWN)
+            {
+                // Count stops between current floor (exclusive) and target floor (exclusive)
+                return destinations.Count(d => d < CurrentFloor && d > targetFloor);
+            }
+            
+            return 0;
         }
 
         /// <summary>

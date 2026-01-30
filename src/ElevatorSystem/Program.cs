@@ -21,7 +21,8 @@ namespace ElevatorSystem
             var config = ConfigurationLoader.Load("appsettings.json");
             Console.WriteLine($"Configuration loaded: {config.ElevatorCount} elevators, {config.MaxFloors} floors\n");
 
-            var logger = new ConsoleLogger(enableDebug: false);
+            // Use Serilog for structured logging with class context
+            var logger = new ConsoleLogger(enableDebug: false, className: "Program");
             var timeService = new SystemTimeService();
             var metrics = new SystemMetrics();
             var rateLimiter = new RateLimiter(
