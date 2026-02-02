@@ -41,10 +41,11 @@ namespace ElevatorSystem.Tests.Domain.Entities
             var request = new Request(hallCallId, journey);
             
             // Act
-            request.MarkAsInTransit();
+            request.MarkAsInTransit(elevatorId: 1);
             
             // Assert
             Assert.Equal(RequestStatus.IN_TRANSIT, request.Status);
+            Assert.Equal(1, request.AssignedElevatorId);
         }
         
         [Fact]
@@ -55,10 +56,10 @@ namespace ElevatorSystem.Tests.Domain.Entities
             // Arrange
             var journey = Journey.Of(3, 7);
             var request = new Request(Guid.NewGuid(), journey);
-            request.MarkAsInTransit();
+            request.MarkAsInTransit(elevatorId: 1);
             
             // Act & Assert
-            var ex = Assert.Throws<InvalidOperationException>(() => request.MarkAsInTransit());
+            var ex = Assert.Throws<InvalidOperationException>(() => request.MarkAsInTransit(elevatorId: 2));
             Assert.Contains("Cannot mark request as in-transit", ex.Message);
         }
         
@@ -70,13 +71,26 @@ namespace ElevatorSystem.Tests.Domain.Entities
             // Arrange
             var journey = Journey.Of(3, 7);
             var request = new Request(Guid.NewGuid(), journey);
-            request.MarkAsInTransit();
+            request.MarkAsInTransit(elevatorId: 1);
             
             // Act
             request.MarkAsCompleted();
             
             // Assert
             Assert.Equal(RequestStatus.COMPLETED, request.Status);
+        }
+        
+        [Fact]
+        [Trait("Category", "Unit")]
+        [Trait("Priority", "P2")]
+        public void Constructor_SetsAssignedElevatorIdToNull()
+        {
+            // Arrange & Act
+            var journey = Journey.Of(3, 7);
+            var request = new Request(Guid.NewGuid(), journey);
+            
+            // Assert
+            Assert.Null(request.AssignedElevatorId);
         }
         
         [Fact]

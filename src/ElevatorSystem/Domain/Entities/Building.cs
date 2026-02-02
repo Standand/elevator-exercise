@@ -85,7 +85,7 @@ namespace ElevatorSystem.Domain.Entities
                 {
                     hallCall = new HallCall(sourceFloor, direction);
                     _hallCallQueue.Add(hallCall);
-                    _logger.LogDebug($"HallCall {GetShortId(hallCall.Id)} created: Floor {sourceFloor}, {direction}");
+                    _logger.LogInfo($"[HALLCALL] {GetShortId(hallCall.Id)} created: Floor {sourceFloor} {direction}");
                 }
                 else
                 {
@@ -97,7 +97,7 @@ namespace ElevatorSystem.Domain.Entities
                 var journey = Journey.Of(sourceFloor, destinationFloor);
                 var request = new Request(hallCall.Id, journey);
                 _requests[request.Id] = request;
-                _logger.LogInfo($"[REQUEST] {GetShortId(request.Id)} Floor {sourceFloor} → {destinationFloor}");
+                _logger.LogInfo($"[REQUEST] Request {GetShortId(request.Id)} Floor {sourceFloor} → {destinationFloor}");
 
                 _metrics.IncrementAcceptedRequests();
                 return Result<Request>.Success(request);
@@ -147,7 +147,7 @@ namespace ElevatorSystem.Domain.Entities
                 var hallCall = new HallCall(floor, direction);
                 _hallCallQueue.Add(hallCall);
                 _metrics.IncrementAcceptedRequests();
-                _logger.LogDebug($"HallCall {GetShortId(hallCall.Id)} created: Floor {floor}, {direction}");
+                _logger.LogInfo($"[HALLCALL] {GetShortId(hallCall.Id)} created: Floor {floor} {direction}");
 
                 return Result<HallCall>.Success(hallCall);
             }
@@ -247,14 +247,14 @@ namespace ElevatorSystem.Domain.Entities
             
             var requestIds = _requests.Values
                 .Where(r => r.HallCallId == hallCall.Id && r.Status == RequestStatus.WAITING)
-                .Select(r => GetShortId(r.Id))
+                .Select(r => $"Request {GetShortId(r.Id)}")
                 .ToList();
             
             var requestIdsString = requestIds.Any() 
                 ? string.Join(", ", requestIds) 
                 : "no requests";
             
-            _logger.LogInfo($"[ASSIGN] E{bestElevator.Id} → Floor {hallCall.Floor} {hallCall.Direction} for {requestIdsString}");
+            _logger.LogInfo($"[ASSIGN] E{bestElevator.Id} → HallCall {GetShortId(hallCall.Id)} Floor {hallCall.Floor} {hallCall.Direction} for {requestIdsString}");
         }
 
         private void CompleteHallCalls()
@@ -276,7 +276,7 @@ namespace ElevatorSystem.Domain.Entities
                 var requestIds = hallCallsAtCurrentFloor
                     .SelectMany(hc => _requests.Values
                         .Where(r => r.HallCallId == hc.Id && r.Status == RequestStatus.WAITING)
-                        .Select(r => GetShortId(r.Id)))
+                        .Select(r => $"Request {GetShortId(r.Id)}"))
                     .ToList();
 
                 if (requestIds.Any())
@@ -298,16 +298,16 @@ namespace ElevatorSystem.Domain.Entities
                     }
                 }
 
-                MarkRequestsAsInTransit(hallCall.Id);
+                MarkRequestsAsInTransit(hallCall.Id, elevator.Id);
 
                 hallCall.MarkAsCompleted();
                 elevator.RemoveHallCallId(hallCall.Id);
                 _metrics.IncrementCompletedHallCalls();
-                _logger.LogDebug($"HallCall {GetShortId(hallCall.Id)} completed by E{elevator.Id} at floor {elevator.CurrentFloor}");
+                _logger.LogInfo($"[HALLCALL] {GetShortId(hallCall.Id)} completed by E{elevator.Id} at Floor {elevator.CurrentFloor}");
             }
         }
 
-        private void MarkRequestsAsInTransit(Guid hallCallId)
+        private void MarkRequestsAsInTransit(Guid hallCallId, int elevatorId)
         {
             var requestsForHallCall = _requests.Values
                 .Where(r => r.HallCallId == hallCallId && r.Status == RequestStatus.WAITING)
@@ -315,8 +315,8 @@ namespace ElevatorSystem.Domain.Entities
 
             foreach (var request in requestsForHallCall)
             {
-                request.MarkAsInTransit();
-                _logger.LogDebug($"Request {GetShortId(request.Id)} IN_TRANSIT");
+                request.MarkAsInTransit(elevatorId);
+                _logger.LogDebug($"Request {GetShortId(request.Id)} IN_TRANSIT on E{elevatorId}");
             }
         }
 
@@ -334,12 +334,13 @@ namespace ElevatorSystem.Domain.Entities
         {
             var requestsToComplete = _requests.Values
                 .Where(r => r.Status == RequestStatus.IN_TRANSIT && 
+                           r.AssignedElevatorId == elevator.Id &&
                            r.Journey.DestinationFloor == elevator.CurrentFloor)
                 .ToList();
 
             if (requestsToComplete.Any())
             {
-                var requestIds = requestsToComplete.Select(r => GetShortId(r.Id)).ToList();
+                var requestIds = requestsToComplete.Select(r => $"Request {GetShortId(r.Id)}").ToList();
                 _logger.LogInfo($"[UNLOADING] E{elevator.Id} at Floor {elevator.CurrentFloor} - Exiting: {string.Join(", ", requestIds)}");
             }
 
@@ -347,7 +348,7 @@ namespace ElevatorSystem.Domain.Entities
             {
                 request.MarkAsCompleted();
                 _metrics.IncrementCompletedRequests();
-                _logger.LogInfo($"[COMPLETE] {GetShortId(request.Id)} Floor {request.Journey.SourceFloor} → {request.Journey.DestinationFloor} by E{elevator.Id}");
+                _logger.LogInfo($"[COMPLETE] Request {GetShortId(request.Id)} Floor {request.Journey.SourceFloor} → {request.Journey.DestinationFloor} by E{elevator.Id}");
             }
         }
 

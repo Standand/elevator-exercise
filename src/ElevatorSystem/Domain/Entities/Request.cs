@@ -13,6 +13,7 @@ namespace ElevatorSystem.Domain.Entities
         public Guid HallCallId { get; }
         public Journey Journey { get; }
         public RequestStatus Status { get; private set; }
+        public int? AssignedElevatorId { get; private set; }
         public DateTime CreatedAt { get; }
 
         public Request(Guid hallCallId, Journey journey)
@@ -21,18 +22,20 @@ namespace ElevatorSystem.Domain.Entities
             HallCallId = hallCallId;
             Journey = journey ?? throw new ArgumentNullException(nameof(journey));
             Status = RequestStatus.WAITING;
+            AssignedElevatorId = null;
             CreatedAt = DateTime.UtcNow;
         }
 
         /// <summary>
         /// Marks the request as in-transit (passenger boarded elevator).
         /// </summary>
-        public void MarkAsInTransit()
+        public void MarkAsInTransit(int elevatorId)
         {
             if (Status != RequestStatus.WAITING)
                 throw new InvalidOperationException($"Cannot mark request as in-transit from status {Status}");
 
             Status = RequestStatus.IN_TRANSIT;
+            AssignedElevatorId = elevatorId;
         }
 
         /// <summary>
