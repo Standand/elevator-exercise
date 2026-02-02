@@ -53,7 +53,7 @@ namespace ElevatorSystem.Tests.Infrastructure.Metrics
         [Fact]
         [Trait("Category", "Unit")]
         [Trait("Priority", "P3")]
-        public void Metrics_ThreadSafe_ConcurrentIncrements()
+        public async Task Metrics_ThreadSafe_ConcurrentIncrements()
         {
             // Arrange
             var metrics = new SystemMetrics();
@@ -70,7 +70,7 @@ namespace ElevatorSystem.Tests.Infrastructure.Metrics
                     }
                 }));
             }
-            Task.WaitAll(tasks.ToArray());
+            await Task.WhenAll(tasks);
             var snapshot = metrics.GetSnapshot();
             
             // Assert - No lost increments
@@ -130,7 +130,7 @@ namespace ElevatorSystem.Tests.Infrastructure.Metrics
         [Fact]
         [Trait("Category", "Unit")]
         [Trait("Priority", "P3")]
-        public void IncrementCompletedRequests_ThreadSafe_ConcurrentIncrements()
+        public async Task IncrementCompletedRequests_ThreadSafe_ConcurrentIncrements()
         {
             // Arrange
             var metrics = new SystemMetrics();
@@ -147,7 +147,7 @@ namespace ElevatorSystem.Tests.Infrastructure.Metrics
                     }
                 }));
             }
-            Task.WaitAll(tasks.ToArray());
+            await Task.WhenAll(tasks);
             var snapshot = metrics.GetSnapshot();
             
             // Assert - No lost increments

@@ -47,13 +47,7 @@ namespace ElevatorSystem.Application.Services
 
                     var result = _building.RequestPassengerJourney(sourceFloor, destinationFloor, "RandomGenerator");
 
-                    if (result.IsSuccess)
-                    {
-                        var request = result.Value!;
-                        var direction = destinationFloor > sourceFloor ? "UP" : "DOWN";
-                        // Request creation is already logged by Building
-                    }
-                    else
+                    if (!result.IsSuccess)
                     {
                         _logger.LogWarning($"Passenger journey rejected: {result.Error}");
                     }

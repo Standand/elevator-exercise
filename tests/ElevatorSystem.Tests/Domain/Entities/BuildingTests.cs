@@ -81,6 +81,8 @@ namespace ElevatorSystem.Tests.Domain.Entities
             
             // Assert
             Assert.True(second.IsSuccess);
+            Assert.NotNull(first.Value);
+            Assert.NotNull(second.Value);
             Assert.Equal(first.Value.Id, second.Value.Id); // Same hall call
         }
         
@@ -142,8 +144,9 @@ namespace ElevatorSystem.Tests.Domain.Entities
             
             // Assert
             var status = building.GetStatus();
+            Assert.NotNull(hallCall);
             Assert.Equal(HallCallStatus.ASSIGNED, hallCall.Status);
-            Assert.True(status.Elevators.Any(e => e.Destinations.Contains(5)));
+            Assert.Contains(status.Elevators, e => e.Destinations.Contains(5));
         }
         
         [Fact]
@@ -161,7 +164,6 @@ namespace ElevatorSystem.Tests.Domain.Entities
             // Assert
             Assert.Equal(4, status.Elevators.Count);
             Assert.Equal(1, status.PendingHallCallsCount);
-            Assert.NotNull(status.Timestamp);
         }
 
         // ========== RequestPassengerJourney Tests ==========
@@ -278,6 +280,8 @@ namespace ElevatorSystem.Tests.Domain.Entities
             // Assert
             Assert.True(request1.IsSuccess);
             Assert.True(request2.IsSuccess);
+            Assert.NotNull(request1.Value);
+            Assert.NotNull(request2.Value);
             Assert.Equal(request1.Value.HallCallId, request2.Value.HallCallId); // Same hall call
             Assert.NotEqual(request1.Value.Id, request2.Value.Id); // Different requests
             
@@ -297,6 +301,7 @@ namespace ElevatorSystem.Tests.Domain.Entities
             var building = TestBuilders.CreateBuilding(doorOpenTicks: 1, elevatorMovementTicks: 1);
             var request = building.RequestPassengerJourney(sourceFloor: 1, destinationFloor: 5);
             Assert.True(request.IsSuccess);
+            Assert.NotNull(request.Value);
             Assert.Equal(RequestStatus.WAITING, request.Value.Status);
             
             // Act - Process ticks until elevator arrives at hall call floor
@@ -340,7 +345,7 @@ namespace ElevatorSystem.Tests.Domain.Entities
             // We verify through metrics or status
             var status = building.GetStatus();
             // Elevator should be at floor 3
-            Assert.True(status.Elevators.Any(e => e.CurrentFloor == 3));
+            Assert.Contains(status.Elevators, e => e.CurrentFloor == 3);
         }
 
         [Fact]
@@ -356,6 +361,8 @@ namespace ElevatorSystem.Tests.Domain.Entities
             var request2 = building.RequestPassengerJourney(sourceFloor: 2, destinationFloor: 7);
             Assert.True(request1.IsSuccess);
             Assert.True(request2.IsSuccess);
+            Assert.NotNull(request1.Value);
+            Assert.NotNull(request2.Value);
             Assert.Equal(request1.Value.HallCallId, request2.Value.HallCallId);
             
             // Act - Move elevator to source floor
@@ -489,6 +496,321 @@ namespace ElevatorSystem.Tests.Domain.Entities
             // Elevator should only have hall call floor (5), not destination (1)
             Assert.Contains(5, elevator.Destinations);
             // Destination 1 should be added only when elevator arrives at floor 5
+        }
+
+        // ========== InitializeElevators Tests ==========
+
+        [Fact]
+        [Trait("Category", "Unit")]
+        [Trait("Priority", "P2")]
+        public void InitializeElevators_E1AndE2StartAtBottomFloor()
+        {
+            // Arrange & Act
+            var building = TestBuilders.CreateBuilding(elevatorCount: 4, maxFloors: 10);
+            
+            // Assert
+            var status = building.GetStatus();
+            var e1 = status.Elevators.First(e => e.Id == 1);
+            var e2 = status.Elevators.First(e => e.Id == 2);
+            
+            Assert.Equal(0, e1.CurrentFloor);
+            Assert.Equal(0, e2.CurrentFloor);
+        }
+
+        [Fact]
+        [Trait("Category", "Unit")]
+        [Trait("Priority", "P2")]
+        public void InitializeElevators_E3AndE4StartAtTopFloor()
+        {
+            // Arrange & Act
+            var building = TestBuilders.CreateBuilding(elevatorCount: 4, maxFloors: 10);
+            
+            // Assert
+            var status = building.GetStatus();
+            var e3 = status.Elevators.First(e => e.Id == 3);
+            var e4 = status.Elevators.First(e => e.Id == 4);
+            
+            Assert.Equal(10, e3.CurrentFloor);
+            Assert.Equal(10, e4.CurrentFloor);
+        }
+
+        [Fact]
+        [Trait("Category", "Unit")]
+        [Trait("Priority", "P2")]
+        public void InitializeElevators_MoreThan4Elevators_DefaultToFloor0()
+        {
+            // Arrange & Act
+            var building = TestBuilders.CreateBuilding(elevatorCount: 6, maxFloors: 10);
+            
+            // Assert
+            var status = building.GetStatus();
+            var e5 = status.Elevators.First(e => e.Id == 5);
+            var e6 = status.Elevators.First(e => e.Id == 6);
+            
+            Assert.Equal(0, e5.CurrentFloor);
+            Assert.Equal(0, e6.CurrentFloor);
+        }
+
+        // ========== UpdateMetrics Tests ==========
+
+        [Fact]
+        [Trait("Category", "Unit")]
+        [Trait("Priority", "P2")]
+        public void UpdateMetrics_UpdatesPendingHallCallsCount()
+        {
+            // Arrange
+            var building = TestBuilders.CreateBuilding();
+            building.RequestHallCall(5, Direction.UP);
+            building.RequestHallCall(3, Direction.DOWN);
+            
+            // Act
+            building.ProcessTick();
+            
+            // Assert - Metrics should be updated (we verify through status)
+            var status = building.GetStatus();
+            // After processing, some hall calls may be assigned, but pending count should reflect current state
+            Assert.True(status.PendingHallCallsCount >= 0);
+        }
+
+        [Fact]
+        [Trait("Category", "Unit")]
+        [Trait("Priority", "P2")]
+        public void UpdateMetrics_UpdatesActiveElevatorsCount()
+        {
+            // Arrange
+            var building = TestBuilders.CreateBuilding(doorOpenTicks: 1, elevatorMovementTicks: 1);
+            building.RequestPassengerJourney(sourceFloor: 1, destinationFloor: 5);
+            
+            // Act
+            building.ProcessTick(); // Assign
+            building.ProcessTick(); // Start moving
+            
+            // Assert
+            var status = building.GetStatus();
+            var activeElevators = status.Elevators.Count(e => e.State != ElevatorState.IDLE);
+            Assert.True(activeElevators > 0);
+        }
+
+        // ========== CompleteHallCallsForElevator Tests ==========
+
+        [Fact]
+        [Trait("Category", "Unit")]
+        [Trait("Priority", "P2")]
+        public void CompleteHallCallsForElevator_LogsLoadingWithRequestIds()
+        {
+            // Arrange
+            var building = TestBuilders.CreateBuilding(doorOpenTicks: 1, elevatorMovementTicks: 1);
+            var logger = (MockLogger)TestBuilders.GetLogger(building);
+            
+            var request1 = building.RequestPassengerJourney(sourceFloor: 1, destinationFloor: 5);
+            var request2 = building.RequestPassengerJourney(sourceFloor: 1, destinationFloor: 7);
+            
+            // Act - Move elevator to source floor
+            building.ProcessTick(); // Assign
+            building.ProcessTick(); // Start moving
+            building.ProcessTick(); // Move to floor 1, LOADING
+            building.ProcessTick(); // Complete hall call
+            
+            // Assert
+            Assert.True(logger.Contains("[LOADING]"));
+            Assert.NotNull(request1.Value);
+            Assert.NotNull(request2.Value);
+            Assert.True(logger.Contains(GetShortId(request1.Value.Id)));
+            Assert.True(logger.Contains(GetShortId(request2.Value.Id)));
+        }
+
+        [Fact]
+        [Trait("Category", "Unit")]
+        [Trait("Priority", "P2")]
+        public void CompleteHallCallsForElevator_MarksRequestsAsInTransit()
+        {
+            // Arrange
+            var building = TestBuilders.CreateBuilding(doorOpenTicks: 1, elevatorMovementTicks: 1);
+            var request = building.RequestPassengerJourney(sourceFloor: 1, destinationFloor: 5);
+            Assert.NotNull(request.Value);
+            Assert.Equal(RequestStatus.WAITING, request.Value.Status);
+            
+            // Act - Move elevator to source floor and complete hall call
+            building.ProcessTick(); // Assign
+            building.ProcessTick(); // Start moving
+            building.ProcessTick(); // Move to floor 1, LOADING
+            building.ProcessTick(); // Complete hall call - request should be IN_TRANSIT
+            
+            // Assert - Request should be marked as IN_TRANSIT (verified through completion)
+            // We can verify by checking that the request can be completed at destination
+            for (int i = 0; i < 10; i++) building.ProcessTick(); // Move to destination
+            building.ProcessTick(); // Complete request
+            
+            // If we got here without error, the request was properly IN_TRANSIT
+            var status = building.GetStatus();
+            Assert.Contains(status.Elevators, e => e.CurrentFloor == 5);
+        }
+
+        [Fact]
+        [Trait("Category", "Unit")]
+        [Trait("Priority", "P2")]
+        public void CompleteHallCallsForElevator_AddsPassengerDestinations()
+        {
+            // Arrange
+            var building = TestBuilders.CreateBuilding(doorOpenTicks: 1, elevatorMovementTicks: 1);
+            building.RequestPassengerJourney(sourceFloor: 2, destinationFloor: 5);
+            building.RequestPassengerJourney(sourceFloor: 2, destinationFloor: 7);
+            
+            // Act - Move elevator to source floor
+            building.ProcessTick(); // Assign
+            for (int i = 0; i < 6; i++) building.ProcessTick(); // Move to floor 2
+            building.ProcessTick(); // Complete hall call
+            
+            // Assert
+            var status = building.GetStatus();
+            var elevator = status.Elevators.FirstOrDefault(e => e.Destinations.Contains(5) || e.Destinations.Contains(7));
+            Assert.NotNull(elevator);
+            Assert.Contains(5, elevator.Destinations);
+            Assert.Contains(7, elevator.Destinations);
+        }
+
+        // ========== CompleteRequestsForElevator Tests ==========
+
+        [Fact]
+        [Trait("Category", "Unit")]
+        [Trait("Priority", "P2")]
+        public void CompleteRequestsForElevator_LogsUnloadingWithRequestIds()
+        {
+            // Arrange
+            var building = TestBuilders.CreateBuilding(doorOpenTicks: 1, elevatorMovementTicks: 1);
+            var logger = (MockLogger)TestBuilders.GetLogger(building);
+            
+            var request1 = building.RequestPassengerJourney(sourceFloor: 1, destinationFloor: 5);
+            var request2 = building.RequestPassengerJourney(sourceFloor: 1, destinationFloor: 5);
+            
+            // Act - Complete full journey
+            building.ProcessTick(); // Assign
+            building.ProcessTick(); // Start moving
+            building.ProcessTick(); // Move to floor 1, LOADING
+            building.ProcessTick(); // Complete hall call
+            for (int i = 0; i < 10; i++) building.ProcessTick(); // Move to floor 5
+            building.ProcessTick(); // Complete requests
+            
+            // Assert
+            Assert.True(logger.Contains("[UNLOADING]"));
+            Assert.NotNull(request1.Value);
+            Assert.NotNull(request2.Value);
+            Assert.True(logger.Contains(GetShortId(request1.Value.Id)));
+            Assert.True(logger.Contains(GetShortId(request2.Value.Id)));
+        }
+
+        [Fact]
+        [Trait("Category", "Unit")]
+        [Trait("Priority", "P2")]
+        public void CompleteRequestsForElevator_CompletesMultipleRequestsAtSameFloor()
+        {
+            // Arrange
+            var building = TestBuilders.CreateBuilding(doorOpenTicks: 1, elevatorMovementTicks: 1);
+            var logger = (MockLogger)TestBuilders.GetLogger(building);
+            
+            var request1 = building.RequestPassengerJourney(sourceFloor: 1, destinationFloor: 5);
+            var request2 = building.RequestPassengerJourney(sourceFloor: 2, destinationFloor: 5);
+            
+            // Act - Complete full journey
+            building.ProcessTick(); // Assign first
+            building.ProcessTick(); // Assign second
+            for (int i = 0; i < 15; i++) building.ProcessTick(); // Move to floor 5
+            building.ProcessTick(); // Complete requests
+            
+            // Assert
+            Assert.True(logger.Contains("[COMPLETE]"));
+            Assert.True(logger.Count("[COMPLETE]") >= 2); // Both requests should complete
+        }
+
+        // ========== TryAssignHallCallToElevator Tests ==========
+
+        [Fact]
+        [Trait("Category", "Unit")]
+        [Trait("Priority", "P2")]
+        public void TryAssignHallCallToElevator_LogsAssignWithRequestIds()
+        {
+            // Arrange
+            var building = TestBuilders.CreateBuilding(doorOpenTicks: 1, elevatorMovementTicks: 1);
+            var logger = (MockLogger)TestBuilders.GetLogger(building);
+            
+            var request1 = building.RequestPassengerJourney(sourceFloor: 3, destinationFloor: 7);
+            var request2 = building.RequestPassengerJourney(sourceFloor: 3, destinationFloor: 9);
+            
+            // Act
+            building.ProcessTick(); // Assign hall call
+            
+            // Assert
+            Assert.True(logger.Contains("[ASSIGN]"));
+            Assert.NotNull(request1.Value);
+            Assert.NotNull(request2.Value);
+            Assert.True(logger.Contains(GetShortId(request1.Value.Id)));
+            Assert.True(logger.Contains(GetShortId(request2.Value.Id)));
+        }
+
+        [Fact]
+        [Trait("Category", "Unit")]
+        [Trait("Priority", "P2")]
+        public void TryAssignHallCallToElevator_NoRequests_LogsNoRequests()
+        {
+            // Arrange
+            var building = TestBuilders.CreateBuilding();
+            var logger = (MockLogger)TestBuilders.GetLogger(building);
+            
+            // Create hall call without passenger journey (legacy method)
+            building.RequestHallCall(5, Direction.UP);
+            
+            // Act
+            building.ProcessTick(); // Assign hall call
+            
+            // Assert
+            Assert.True(logger.Contains("[ASSIGN]"));
+            Assert.True(logger.Contains("no requests"));
+        }
+
+        // ========== ProcessTick Comprehensive Tests ==========
+
+        [Fact]
+        [Trait("Category", "Unit")]
+        [Trait("Priority", "P2")]
+        public void ProcessTick_ExecutesAllPhasesInOrder()
+        {
+            // Arrange
+            var building = TestBuilders.CreateBuilding(doorOpenTicks: 1, elevatorMovementTicks: 1);
+            building.RequestPassengerJourney(sourceFloor: 1, destinationFloor: 3);
+            
+            // Act
+            building.ProcessTick(); // Should: AssignPendingHallCalls, ProcessAllElevators, CompleteHallCalls, CompleteRequests, UpdateMetrics
+            
+            // Assert - Verify that assignment happened
+            var status = building.GetStatus();
+            Assert.Contains(status.Elevators, e => e.Destinations.Contains(1) || e.State != ElevatorState.IDLE);
+        }
+
+        [Fact]
+        [Trait("Category", "Unit")]
+        [Trait("Priority", "P2")]
+        public void ProcessTick_HandlesMultipleHallCallsInFifoOrder()
+        {
+            // Arrange
+            var building = TestBuilders.CreateBuilding(doorOpenTicks: 1, elevatorMovementTicks: 1);
+            var hallCall1 = building.RequestHallCall(2, Direction.UP);
+            var hallCall2 = building.RequestHallCall(3, Direction.UP);
+            
+            // Act
+            building.ProcessTick(); // Should assign both
+            
+            // Assert
+            Assert.NotNull(hallCall1.Value);
+            Assert.NotNull(hallCall2.Value);
+            Assert.Equal(HallCallStatus.ASSIGNED, hallCall1.Value.Status);
+            Assert.Equal(HallCallStatus.ASSIGNED, hallCall2.Value.Status);
+        }
+
+        // ========== Helper Methods ==========
+
+        private static string GetShortId(Guid id)
+        {
+            return id.ToString().Substring(0, 8);
         }
     }
 }

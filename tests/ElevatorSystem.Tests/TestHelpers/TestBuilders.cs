@@ -1,4 +1,5 @@
 using System;
+using System.Reflection;
 using ElevatorSystem.Common;
 using ElevatorSystem.Domain.Entities;
 using ElevatorSystem.Domain.Services;
@@ -78,6 +79,17 @@ namespace ElevatorSystem.Tests.TestHelpers
         {
             var logger = new MockLogger();
             return new RateLimiter(globalLimit, perSourceLimit, logger);
+        }
+
+        /// <summary>
+        /// Gets the logger from a Building instance using reflection.
+        /// Used for testing logging behavior.
+        /// </summary>
+        public static MockLogger GetLogger(Building building)
+        {
+            var loggerField = typeof(Building).GetField("_logger", 
+                BindingFlags.NonPublic | BindingFlags.Instance);
+            return (MockLogger)loggerField!.GetValue(building)!;
         }
     }
 }

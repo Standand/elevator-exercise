@@ -92,7 +92,7 @@ namespace ElevatorSystem.Tests.Common
         [Fact]
         [Trait("Category", "Unit")]
         [Trait("Priority", "P3")]
-        public void IsAllowed_ThreadSafe_ConcurrentRequests()
+        public async Task IsAllowed_ThreadSafe_ConcurrentRequests()
         {
             // Arrange
             var logger = new MockLogger();
@@ -112,7 +112,7 @@ namespace ElevatorSystem.Tests.Common
                     }
                 }));
             }
-            Task.WaitAll(tasks.ToArray());
+            await Task.WhenAll(tasks);
             
             // Assert - Should respect per-source limit (50)
             Assert.True(allowedCount <= 50, $"Expected <= 50 allowed requests, got {allowedCount}");

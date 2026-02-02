@@ -194,7 +194,7 @@ namespace ElevatorSystem.Tests.Domain.Entities
             // IReadOnlyCollection doesn't expose IsReadOnly, but we can verify it's read-only
             // by checking that it's not a mutable collection type
             Assert.NotNull(destinations);
-            Assert.Equal(1, destinations.Count);
+            Assert.Single(destinations);
         }
 
         [Fact]

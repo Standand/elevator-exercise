@@ -356,14 +356,6 @@ namespace ElevatorSystem.Domain.Entities
         }
 
         /// <summary>
-        /// Gets the list of assigned hall call IDs.
-        /// </summary>
-        public List<Guid> GetAssignedHallCallIds()
-        {
-            return _assignedHallCallIds.ToList();
-        }
-
-        /// <summary>
         /// Gets the furthest destination in the current direction (for scheduling calculations).
         /// Returns null if no destinations exist.
         /// </summary>

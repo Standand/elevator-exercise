@@ -75,17 +75,6 @@ namespace ElevatorSystem.Application.Services
         private void LogElevatorStatuses()
         {
             var status = _building.GetStatus();
-            var elevatorStatuses = status.Elevators
-                .OrderBy(e => e.Id)
-                .Select(e =>
-                {
-                    var destStr = e.Destinations.Count > 0 
-                        ? $"[{string.Join(", ", e.Destinations)}]" 
-                        : "[]";
-                    return $"Elevator {e.Id}: Floor {e.CurrentFloor}, {e.State}, {e.Direction}, Destinations: {destStr}";
-                })
-                .ToList();
-            
             var compactStatuses = status.Elevators
                 .OrderBy(e => e.Id)
                 .Select(e => $"E{e.Id}:F{e.CurrentFloor} {e.State} {e.Direction} D:[{string.Join(",", e.Destinations)}]")
