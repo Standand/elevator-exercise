@@ -6,18 +6,11 @@ namespace ElevatorSystem.Domain.ValueObjects
     /// Represents a passenger's journey from source to destination floor.
     /// Immutable value object.
     /// </summary>
-    public class Journey
+    public record Journey
     {
-        public int SourceFloor { get; }
-        public int DestinationFloor { get; }
-        public Direction Direction { get; }
-
-        private Journey(int sourceFloor, int destinationFloor)
-        {
-            SourceFloor = sourceFloor;
-            DestinationFloor = destinationFloor;
-            Direction = destinationFloor > sourceFloor ? ValueObjects.Direction.UP : ValueObjects.Direction.DOWN;
-        }
+        public int SourceFloor { get; init; }
+        public int DestinationFloor { get; init; }
+        public Direction Direction { get; init; }
 
         /// <summary>
         /// Factory method to create a Journey with validation.
@@ -30,17 +23,15 @@ namespace ElevatorSystem.Domain.ValueObjects
             if (sourceFloor < 0 || destinationFloor < 0)
                 throw new ArgumentException("Floor numbers cannot be negative");
 
-            return new Journey(sourceFloor, destinationFloor);
-        }
+            var direction = destinationFloor > sourceFloor ? Direction.UP : Direction.DOWN;
 
-        public override bool Equals(object? obj)
-        {
-            return obj is Journey other &&
-                   SourceFloor == other.SourceFloor &&
-                   DestinationFloor == other.DestinationFloor;
+            return new Journey
+            {
+                SourceFloor = sourceFloor,
+                DestinationFloor = destinationFloor,
+                Direction = direction
+            };
         }
-
-        public override int GetHashCode() => HashCode.Combine(SourceFloor, DestinationFloor);
 
         public override string ToString() => $"{SourceFloor} → {DestinationFloor} ({Direction})";
     }

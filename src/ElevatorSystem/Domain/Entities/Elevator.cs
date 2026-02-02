@@ -29,7 +29,7 @@ namespace ElevatorSystem.Domain.Entities
         private int _loadingStateTickCount;
         private int _movementTimer;
 
-        public Elevator(int id, int maxFloors, int doorOpenDuration, int movementTicks, ILogger logger)
+        public Elevator(int id, int maxFloors, int doorOpenDuration, int movementTicks, ILogger logger, int? initialFloor = null)
         {
             Id = id;
             _maxFloors = maxFloors;
@@ -37,10 +37,23 @@ namespace ElevatorSystem.Domain.Entities
             _movementTicks = movementTicks;
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
 
-            CurrentFloor = 0;
-            Direction = ValueObjects.Direction.IDLE;
+            if (initialFloor.HasValue)
+            {
+                if (initialFloor.Value < 0 || initialFloor.Value > maxFloors)
+                {
+                    throw new ArgumentOutOfRangeException(nameof(initialFloor), 
+                        $"Initial floor must be between 0 and {maxFloors}, got {initialFloor.Value}");
+                }
+                CurrentFloor = initialFloor.Value;
+            }
+            else
+            {
+                CurrentFloor = 0;
+            }
+
+            Direction = Direction.IDLE;
             State = ElevatorState.IDLE;
-            _destinations = new DestinationSet(ValueObjects.Direction.IDLE);
+            _destinations = new DestinationSet(Direction.IDLE);
             _assignedHallCallIds = new List<Guid>();
             _doorTimer = 0;
             _loadingStateTickCount = 0;
@@ -86,7 +99,7 @@ namespace ElevatorSystem.Domain.Entities
 
             var furthestDestination = _destinations.GetFurthestDestination();
 
-            if (Direction == ValueObjects.Direction.UP)
+            if (Direction == Direction.UP)
             {
                 return CurrentFloor < hallCall.Floor && hallCall.Floor <= furthestDestination;
             }
@@ -126,7 +139,7 @@ namespace ElevatorSystem.Domain.Entities
         /// </summary>
         public void SetDirection(Direction direction)
         {
-            Direction = direction ?? throw new ArgumentNullException(nameof(direction));
+            Direction = direction;
             _destinations.SetDirection(Direction);
             _logger.LogDebug($"Elevator {Id} direction set to {Direction} at floor {CurrentFloor}");
         }
@@ -165,10 +178,10 @@ namespace ElevatorSystem.Domain.Entities
                 return;
             }
 
-            Direction = nextDestination > CurrentFloor ? ValueObjects.Direction.UP : ValueObjects.Direction.DOWN;
+            Direction = nextDestination > CurrentFloor ? Direction.UP : Direction.DOWN;
             _destinations.SetDirection(Direction);
             State = ElevatorState.MOVING;
-            _movementTimer = _movementTicks; // Initialize movement timer
+            _movementTimer = _movementTicks;
             _logger.LogInfo($"[MOVE] E{Id} {Direction} from Floor {CurrentFloor}");
         }
 
@@ -197,13 +210,12 @@ namespace ElevatorSystem.Domain.Entities
             }
             else
             {
-                // Wait for movement timer before moving one floor
                 _movementTimer--;
                 
                 if (_movementTimer <= 0)
                 {
                     MoveOneFloorTowards(nextDestination);
-                    _movementTimer = _movementTicks; // Reset timer for next movement
+                    _movementTimer = _movementTicks;
                 }
                 else
                 {
@@ -214,7 +226,7 @@ namespace ElevatorSystem.Domain.Entities
 
         private void TransitionToIdle()
         {
-            Direction = ValueObjects.Direction.IDLE;
+            Direction = Direction.IDLE;
             _destinations.SetDirection(Direction);
             State = ElevatorState.IDLE;
             _logger.LogDebug($"E{Id} IDLE at Floor {CurrentFloor}");
@@ -295,7 +307,7 @@ namespace ElevatorSystem.Domain.Entities
 
         private void TransitionToIdleAfterLoading()
         {
-            Direction = ValueObjects.Direction.IDLE;
+            Direction = Direction.IDLE;
             _destinations.SetDirection(Direction);
             State = ElevatorState.IDLE;
             _logger.LogDebug($"E{Id} IDLE at Floor {CurrentFloor}");
@@ -311,10 +323,10 @@ namespace ElevatorSystem.Domain.Entities
                 return;
             }
 
-            Direction = nextDestination > CurrentFloor ? ValueObjects.Direction.UP : ValueObjects.Direction.DOWN;
+            Direction = nextDestination > CurrentFloor ? Direction.UP : Direction.DOWN;
             _destinations.SetDirection(Direction);
             State = ElevatorState.MOVING;
-            _movementTimer = _movementTicks; // Initialize movement timer
+            _movementTimer = _movementTicks;
             _logger.LogDebug($"E{Id} continuing {Direction} from Floor {CurrentFloor}");
         }
 
@@ -322,7 +334,7 @@ namespace ElevatorSystem.Domain.Entities
         {
             _logger.LogError($"Elevator {Id} next destination equals current floor {CurrentFloor} - removing and going IDLE");
             _destinations.Remove(nextDestination);
-            Direction = ValueObjects.Direction.IDLE;
+            Direction = Direction.IDLE;
             _destinations.SetDirection(Direction);
             State = ElevatorState.IDLE;
         }
@@ -332,13 +344,15 @@ namespace ElevatorSystem.Domain.Entities
         /// </summary>
         public ElevatorStatus GetStatus()
         {
-            return new ElevatorStatus(
-                Id,
-                CurrentFloor,
-                Direction,
-                State,
-                _destinations.GetAll(),
-                _assignedHallCallIds.ToList());
+            return new ElevatorStatus
+            {
+                Id = Id,
+                CurrentFloor = CurrentFloor,
+                Direction = Direction,
+                State = State,
+                Destinations = _destinations.GetAll(),
+                AssignedHallCallIds = _assignedHallCallIds.ToList()
+            };
         }
 
         /// <summary>
@@ -389,14 +403,12 @@ namespace ElevatorSystem.Domain.Entities
 
             var destinations = _destinations.GetAll();
             
-            if (Direction == ValueObjects.Direction.UP)
+            if (Direction == Direction.UP)
             {
-                // Count stops between current floor (exclusive) and target floor (exclusive)
                 return destinations.Count(d => d > CurrentFloor && d < targetFloor);
             }
-            else if (Direction == ValueObjects.Direction.DOWN)
+            else if (Direction == Direction.DOWN)
             {
-                // Count stops between current floor (exclusive) and target floor (exclusive)
                 return destinations.Count(d => d < CurrentFloor && d > targetFloor);
             }
             

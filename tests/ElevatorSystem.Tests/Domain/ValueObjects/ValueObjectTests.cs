@@ -5,8 +5,8 @@ using ElevatorSystem.Domain.ValueObjects;
 namespace ElevatorSystem.Tests.Domain.ValueObjects
 {
     /// <summary>
-    /// Tests for value object factory methods and validation.
-    /// Covers Direction, Journey, and status value objects.
+    /// Tests for value objects (enums and records).
+    /// Covers Direction, Journey, and status enums.
     /// </summary>
     public class ValueObjectTests
     {
@@ -18,24 +18,23 @@ namespace ElevatorSystem.Tests.Domain.ValueObjects
         [InlineData("Up")]
         [Trait("Category", "Unit")]
         [Trait("Priority", "P2")]
-        public void Direction_Of_ValidValue_ReturnsCorrectInstance(string input)
+        public void Direction_Parse_ValidValue_ReturnsCorrectInstance(string input)
         {
             // Act
-            var direction = Direction.Of(input);
+            var direction = Enum.Parse<Direction>(input, ignoreCase: true);
             
             // Assert
             Assert.Equal(Direction.UP, direction);
-            Assert.Equal("UP", direction.Value);
+            Assert.Equal("UP", direction.ToString());
         }
         
         [Fact]
         [Trait("Category", "Unit")]
         [Trait("Priority", "P2")]
-        public void Direction_Of_InvalidValue_ThrowsException()
+        public void Direction_Parse_InvalidValue_ThrowsException()
         {
             // Act & Assert
-            var ex = Assert.Throws<ArgumentException>(() => Direction.Of("LEFT"));
-            Assert.Contains("Invalid direction", ex.Message);
+            Assert.Throws<ArgumentException>(() => Enum.Parse<Direction>("LEFT", ignoreCase: true));
         }
         
         [Fact]
@@ -45,7 +44,7 @@ namespace ElevatorSystem.Tests.Domain.ValueObjects
         {
             // Arrange
             var up1 = Direction.UP;
-            var up2 = Direction.Of("UP");
+            var up2 = Direction.UP;
             var down = Direction.DOWN;
             
             // Act & Assert
@@ -144,10 +143,10 @@ namespace ElevatorSystem.Tests.Domain.ValueObjects
         [InlineData("Idle")]
         [Trait("Category", "Unit")]
         [Trait("Priority", "P2")]
-        public void ElevatorState_Of_ValidValue_ReturnsCorrectInstance(string input)
+        public void ElevatorState_Parse_ValidValue_ReturnsCorrectInstance(string input)
         {
             // Act
-            var state = ElevatorState.Of(input);
+            var state = Enum.Parse<ElevatorState>(input, ignoreCase: true);
             
             // Assert
             Assert.Equal(ElevatorState.IDLE, state);
@@ -156,11 +155,10 @@ namespace ElevatorSystem.Tests.Domain.ValueObjects
         [Fact]
         [Trait("Category", "Unit")]
         [Trait("Priority", "P2")]
-        public void ElevatorState_Of_InvalidValue_ThrowsException()
+        public void ElevatorState_Parse_InvalidValue_ThrowsException()
         {
             // Act & Assert
-            var ex = Assert.Throws<ArgumentException>(() => ElevatorState.Of("BROKEN"));
-            Assert.Contains("Invalid elevator state", ex.Message);
+            Assert.Throws<ArgumentException>(() => Enum.Parse<ElevatorState>("BROKEN", ignoreCase: true));
         }
         
         #endregion
@@ -173,10 +171,10 @@ namespace ElevatorSystem.Tests.Domain.ValueObjects
         [InlineData("Pending")]
         [Trait("Category", "Unit")]
         [Trait("Priority", "P2")]
-        public void HallCallStatus_Of_ValidValue_ReturnsCorrectInstance(string input)
+        public void HallCallStatus_Parse_ValidValue_ReturnsCorrectInstance(string input)
         {
             // Act
-            var status = HallCallStatus.Of(input);
+            var status = Enum.Parse<HallCallStatus>(input, ignoreCase: true);
             
             // Assert
             Assert.Equal(HallCallStatus.PENDING, status);
@@ -185,11 +183,10 @@ namespace ElevatorSystem.Tests.Domain.ValueObjects
         [Fact]
         [Trait("Category", "Unit")]
         [Trait("Priority", "P2")]
-        public void HallCallStatus_Of_InvalidValue_ThrowsException()
+        public void HallCallStatus_Parse_InvalidValue_ThrowsException()
         {
             // Act & Assert
-            var ex = Assert.Throws<ArgumentException>(() => HallCallStatus.Of("INVALID"));
-            Assert.Contains("Invalid hall call status", ex.Message);
+            Assert.Throws<ArgumentException>(() => Enum.Parse<HallCallStatus>("INVALID", ignoreCase: true));
         }
         
         #endregion
@@ -202,10 +199,10 @@ namespace ElevatorSystem.Tests.Domain.ValueObjects
         [InlineData("Waiting")]
         [Trait("Category", "Unit")]
         [Trait("Priority", "P2")]
-        public void RequestStatus_Of_ValidValue_ReturnsCorrectInstance(string input)
+        public void RequestStatus_Parse_ValidValue_ReturnsCorrectInstance(string input)
         {
             // Act
-            var status = RequestStatus.Of(input);
+            var status = Enum.Parse<RequestStatus>(input, ignoreCase: true);
             
             // Assert
             Assert.Equal(RequestStatus.WAITING, status);
@@ -214,11 +211,10 @@ namespace ElevatorSystem.Tests.Domain.ValueObjects
         [Fact]
         [Trait("Category", "Unit")]
         [Trait("Priority", "P2")]
-        public void RequestStatus_Of_InvalidValue_ThrowsException()
+        public void RequestStatus_Parse_InvalidValue_ThrowsException()
         {
             // Act & Assert
-            var ex = Assert.Throws<ArgumentException>(() => RequestStatus.Of("INVALID"));
-            Assert.Contains("Invalid request status", ex.Message);
+            Assert.Throws<ArgumentException>(() => Enum.Parse<RequestStatus>("INVALID", ignoreCase: true));
         }
         
         #endregion

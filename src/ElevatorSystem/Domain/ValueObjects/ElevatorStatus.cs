@@ -7,30 +7,14 @@ namespace ElevatorSystem.Domain.ValueObjects
     /// Represents a snapshot of an elevator's current status.
     /// Immutable value object for status queries.
     /// </summary>
-    public class ElevatorStatus
+    public record ElevatorStatus
     {
-        public int Id { get; }
-        public int CurrentFloor { get; }
-        public Direction Direction { get; }
-        public ElevatorState State { get; }
-        public List<int> Destinations { get; }
-        public List<Guid> AssignedHallCallIds { get; }
-
-        public ElevatorStatus(
-            int id,
-            int currentFloor,
-            Direction direction,
-            ElevatorState state,
-            List<int> destinations,
-            List<Guid> assignedHallCallIds)
-        {
-            Id = id;
-            CurrentFloor = currentFloor;
-            Direction = direction ?? throw new ArgumentNullException(nameof(direction));
-            State = state ?? throw new ArgumentNullException(nameof(state));
-            Destinations = destinations ?? throw new ArgumentNullException(nameof(destinations));
-            AssignedHallCallIds = assignedHallCallIds ?? throw new ArgumentNullException(nameof(assignedHallCallIds));
-        }
+        public int Id { get; init; }
+        public int CurrentFloor { get; init; }
+        public Direction Direction { get; init; }
+        public ElevatorState State { get; init; }
+        public required List<int> Destinations { get; init; }
+        public required List<Guid> AssignedHallCallIds { get; init; }
 
         public override string ToString()
         {

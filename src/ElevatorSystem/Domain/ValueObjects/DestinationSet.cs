@@ -15,7 +15,7 @@ namespace ElevatorSystem.Domain.ValueObjects
 
         public DestinationSet(Direction direction)
         {
-            _direction = direction ?? throw new ArgumentNullException(nameof(direction));
+            _direction = direction;
         }
 
         public int Count => _destinations.Count;
@@ -108,7 +108,7 @@ namespace ElevatorSystem.Domain.ValueObjects
         /// </summary>
         public void SetDirection(Direction direction)
         {
-            _direction = direction ?? throw new ArgumentNullException(nameof(direction));
+            _direction = direction;
         }
     }
 }

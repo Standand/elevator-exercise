@@ -7,21 +7,11 @@ namespace ElevatorSystem.Domain.ValueObjects
     /// Represents a snapshot of the building's current status.
     /// Immutable value object for status queries.
     /// </summary>
-    public class BuildingStatus
+    public record BuildingStatus
     {
-        public List<ElevatorStatus> Elevators { get; }
-        public int PendingHallCallsCount { get; }
-        public DateTime Timestamp { get; }
-
-        public BuildingStatus(
-            List<ElevatorStatus> elevators,
-            int pendingHallCallsCount,
-            DateTime timestamp)
-        {
-            Elevators = elevators ?? throw new ArgumentNullException(nameof(elevators));
-            PendingHallCallsCount = pendingHallCallsCount;
-            Timestamp = timestamp;
-        }
+        public required List<ElevatorStatus> Elevators { get; init; }
+        public int PendingHallCallsCount { get; init; }
+        public DateTime Timestamp { get; init; }
 
         public override string ToString()
         {

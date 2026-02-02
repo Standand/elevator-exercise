@@ -25,7 +25,7 @@ namespace ElevatorSystem.Domain.Entities
         {
             Id = Guid.NewGuid();
             Floor = floor;
-            Direction = direction ?? throw new ArgumentNullException(nameof(direction));
+            Direction = direction;
             Status = HallCallStatus.PENDING;
             AssignedElevatorId = null;
             CreatedAt = createdAt ?? DateTime.UtcNow;
